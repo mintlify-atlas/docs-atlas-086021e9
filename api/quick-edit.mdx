@@ -1,0 +1,266 @@
+---
+title: 'quick_edit'
+description: 'Complete one-line workflow for creating, uploading, editing, and downloading images'
+---
+
+## Overview
+
+The `quick_edit` function handles the entire Imagen AI workflow in a single call. It automatically creates a project, uploads images, applies AI editing, and optionally exports and downloads the results. Perfect for simple automation scripts and batch processing.
+
+## Function Signature
+
+```python
+await quick_edit(
+    api_key: str,
+    profile_key: int,
+    image_paths: List[Union[str, Path]],
+    project_name: Optional[str] = None,
+    photography_type: Optional[PhotographyType] = None,
+    export: bool = False,
+    edit_options: Optional[EditOptions] = None,
+    download: bool = False,
+    download_dir: Union[str, Path] = "downloads",
+    export_download_dir: Optional[Union[str, Path]] = None,
+    base_url: str = "https://api-beta.imagen-ai.com/v1",
+    logger: Optional[logging.Logger] = None,
+    logger_level: Optional[int] = None
+) -> QuickEditResult
+```
+
+## Parameters
+
+<ParamField path="api_key" type="str" required>
+  Your Imagen AI API key
+</ParamField>
+
+<ParamField path="profile_key" type="int" required>
+  Profile ID to use for editing. Obtain from `get_profiles()`.
+</ParamField>
+
+<ParamField path="image_paths" type="List[Union[str, Path]]" required>
+  List of local image file paths to upload. All files must be the same type (RAW or JPEG).
+</ParamField>
+
+<ParamField path="project_name" type="str">
+  Optional name for the project. Must be unique across your account.
+</ParamField>
+
+<ParamField path="photography_type" type="PhotographyType">
+  Optional photography type for AI optimization. Options:
+  - `PhotographyType.PORTRAITS`
+  - `PhotographyType.WEDDING`
+  - `PhotographyType.EVENTS`
+  - `PhotographyType.REAL_ESTATE`
+  - `PhotographyType.LANDSCAPE_NATURE`
+  - `PhotographyType.FAMILY_NEWBORN`
+  - `PhotographyType.BOUDOIR`
+  - `PhotographyType.SPORTS`
+</ParamField>
+
+<ParamField path="export" type="bool" default="false">
+  Whether to export final JPEG files
+</ParamField>
+
+<ParamField path="edit_options" type="EditOptions">
+  Optional editing parameters for customization:
+  - `crop`: Auto-crop images
+  - `straighten`: Auto-straighten horizons
+  - `portrait_crop`: Portrait-specific cropping
+  - `headshot_crop`: Headshot-specific cropping
+  - `smooth_skin`: Skin smoothing for portraits
+  - `hdr_merge`: HDR bracket merging
+  - `subject_mask`: Apply subject masking
+  - `perspective_correction`: Correct perspective
+  - `sky_replacement`: Apply sky replacement
+  - `window_pull`: Apply window pull
+  - `crop_aspect_ratio`: Custom aspect ratio
+</ParamField>
+
+<ParamField path="download" type="bool" default="false">
+  Whether to automatically download edited files
+</ParamField>
+
+<ParamField path="download_dir" type="Union[str, Path]" default="downloads">
+  Directory to save downloaded files
+</ParamField>
+
+<ParamField path="export_download_dir" type="Union[str, Path]">
+  Directory for exported files. Defaults to a subdirectory inside `download_dir`.
+</ParamField>
+
+<ParamField path="base_url" type="str" default="https://api-beta.imagen-ai.com/v1">
+  API base URL
+</ParamField>
+
+<ParamField path="logger" type="logging.Logger">
+  Optional custom logger for workflow logging
+</ParamField>
+
+<ParamField path="logger_level" type="int">
+  Optional logging level (e.g., `logging.INFO`, `logging.DEBUG`)
+</ParamField>
+
+## Return Value
+
+<ResponseField name="QuickEditResult" type="QuickEditResult">
+  Complete result object containing:
+  
+  <ResponseField name="project_uuid" type="str">
+    UUID of the created project
+  </ResponseField>
+  
+  <ResponseField name="upload_summary" type="UploadSummary">
+    Upload statistics and results:
+    - `total`: Total number of files attempted
+    - `successful`: Number of successfully uploaded files
+    - `failed`: Number of failed uploads
+    - `results`: List of UploadResult objects with details for each file
+  </ResponseField>
+  
+  <ResponseField name="download_links" type="List[str]">
+    URLs for downloading XMP files
+  </ResponseField>
+  
+  <ResponseField name="export_links" type="List[str] | None">
+    URLs for downloading JPEG files (if export=True)
+  </ResponseField>
+  
+  <ResponseField name="downloaded_files" type="List[str] | None">
+    Local paths of downloaded XMP files (if download=True)
+  </ResponseField>
+  
+  <ResponseField name="exported_files" type="List[str] | None">
+    Local paths of downloaded JPEG files (if export=True and download=True)
+  </ResponseField>
+</ResponseField>
+
+## Exceptions
+
+- `UploadError` - If no files uploaded successfully or file type validation fails
+- `ProjectError` - If project creation, editing, or export fails
+- `AuthenticationError` - If API key is invalid
+- `DownloadError` - If download=True but download fails
+
+## Examples
+
+### Basic Workflow
+
+```python
+from imagen_sdk import quick_edit
+
+# Simple edit workflow
+result = await quick_edit(
+    api_key="your_api_key",
+    profile_key=5700,
+    image_paths=["photo1.cr2", "photo2.nef", "photo3.dng"]
+)
+
+print(f"Project UUID: {result.project_uuid}")
+print(f"Uploaded: {result.upload_summary.successful} files")
+print(f"Download links: {len(result.download_links)}")
+```
+
+### Advanced Workflow with Export
+
+```python
+from imagen_sdk import quick_edit, EditOptions, PhotographyType
+
+# Create custom edit options
+edit_options = EditOptions(
+    crop=True,
+    straighten=True,
+    smooth_skin=True,
+    portrait_crop=True
+)
+
+# Complete workflow with export and download
+result = await quick_edit(
+    api_key="your_api_key",
+    profile_key=5700,
+    image_paths=["photo1.cr2", "photo2.cr2"],
+    project_name="Wedding_Smith_2024",
+    photography_type=PhotographyType.WEDDING,
+    edit_options=edit_options,
+    export=True,
+    download=True,
+    download_dir="wedding_edits",
+    export_download_dir="wedding_edits/final_jpegs"
+)
+
+print(f"Downloaded {len(result.downloaded_files)} XMP files")
+print(f"Downloaded {len(result.exported_files)} JPEG files")
+```
+
+### With Custom Logging
+
+```python
+import logging
+from imagen_sdk import quick_edit
+
+# Configure logging
+logger = logging.getLogger("my_workflow")
+logger.setLevel(logging.INFO)
+handler = logging.StreamHandler()
+handler.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
+logger.addHandler(handler)
+
+# Run with custom logger
+result = await quick_edit(
+    api_key="your_api_key",
+    profile_key=5700,
+    image_paths=["photo1.jpg", "photo2.jpg"],
+    logger=logger,
+    logger_level=logging.DEBUG
+)
+```
+
+### Download Only Workflow
+
+```python
+from imagen_sdk import quick_edit
+
+# Edit and get links without downloading
+result = await quick_edit(
+    api_key="your_api_key",
+    profile_key=5700,
+    image_paths=["photo1.cr2", "photo2.cr2"],
+    download=False  # Just get links
+)
+
+# Download later manually
+for link in result.download_links:
+    print(f"Download from: {link}")
+```
+
+### Export with Custom Directory
+
+```python
+from imagen_sdk import quick_edit
+
+result = await quick_edit(
+    api_key="your_api_key",
+    profile_key=5700,
+    image_paths=["photo1.cr2", "photo2.cr2"],
+    export=True,
+    download=True,
+    download_dir="client_delivery",
+    export_download_dir="client_delivery/final_jpegs"
+)
+
+print(f"XMP files saved to: client_delivery/")
+print(f"JPEG files saved to: client_delivery/final_jpegs/")
+```
+
+## Notes
+
+<Note>
+- All files must be the same type (all RAW or all JPEG)
+- Project names must be unique across your account
+- Setting `download=True` automatically downloads both XMP and JPEG files (if `export=True`)
+- The function validates file types against the profile before uploading
+- This function blocks until all operations complete
+</Note>
+
+<Tip>
+Use `quick_edit` when you want a simple, one-line solution for the entire workflow. For more control over individual steps, use the `ImagenClient` class directly.
+</Tip>

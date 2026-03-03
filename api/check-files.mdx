@@ -1,0 +1,253 @@
+---
+title: 'check_files_match_profile_type'
+description: 'Validate that image files match the profile image type'
+---
+
+## Overview
+
+The `check_files_match_profile_type` function validates that all image files match the profile's image type (RAW or JPG). This prevents upload errors by ensuring file type consistency before starting the upload process.
+
+## Function Signature
+
+```python
+check_files_match_profile_type(
+    image_paths: List[Union[str, Path]],
+    profile: Profile,
+    logger: logging.Logger
+) -> None
+```
+
+## Parameters
+
+<ParamField path="image_paths" type="List[Union[str, Path]]" required>
+  List of image file paths to validate
+</ParamField>
+
+<ParamField path="profile" type="Profile" required>
+  Profile object with `image_type` specification ("RAW" or "JPG")
+</ParamField>
+
+<ParamField path="logger" type="logging.Logger" required>
+  Logger instance for error reporting
+</ParamField>
+
+## Return Value
+
+This function returns `None` if validation succeeds. If validation fails, it raises an exception.
+
+## Exceptions
+
+- `UploadError` - If files don't match profile type or contain mixed/unsupported types
+
+## Validation Rules
+
+### RAW Profiles
+- Accept only RAW file extensions: `.dng`, `.nef`, `.cr2`, `.arw`, `.cr3`, etc.
+- Reject JPEG files (`.jpg`, `.jpeg`)
+- Reject unsupported file formats
+
+### JPG Profiles  
+- Accept only JPEG file extensions: `.jpg`, `.jpeg`
+- Reject RAW files
+- Reject unsupported file formats
+
+## Supported File Formats
+
+### RAW Extensions
+`.dng`, `.nef`, `.cr2`, `.arw`, `.nrw`, `.crw`, `.srf`, `.sr2`, `.orf`, `.raw`, `.rw2`, `.raf`, `.ptx`, `.pef`, `.rwl`, `.srw`, `.cr3`, `.3fr`, `.fff`
+
+### JPEG Extensions
+`.jpg`, `.jpeg`
+
+## Examples
+
+### Basic Validation
+
+```python
+from imagen_sdk import get_profile, check_files_match_profile_type
+import logging
+
+# Setup logger
+logger = logging.getLogger("my_app")
+
+# Get profile and validate files
+profile = await get_profile("api_key", profile_key=5700)
+files = ["photo1.cr2", "photo2.nef", "photo3.dng"]
+
+try:
+    check_files_match_profile_type(files, profile, logger)
+    print("All files are valid for this profile")
+except UploadError as e:
+    print(f"Validation failed: {e}")
+```
+
+### RAW Profile Validation
+
+```python
+from imagen_sdk import get_profile, check_files_match_profile_type
+import logging
+
+logger = logging.getLogger(__name__)
+profile = await get_profile("api_key", 5700)  # RAW profile
+
+# Valid RAW files
+raw_files = ["wedding1.cr2", "wedding2.nef", "wedding3.dng"]
+check_files_match_profile_type(raw_files, profile, logger)
+print("RAW files validated successfully")
+
+# Invalid - mixing RAW and JPEG
+mixed_files = ["photo1.cr2", "photo2.jpg"]  # This will raise UploadError
+try:
+    check_files_match_profile_type(mixed_files, profile, logger)
+except UploadError as e:
+    print(f"Error: {e}")  # RAW profile cannot be used with JPG files
+```
+
+### JPEG Profile Validation
+
+```python
+from imagen_sdk import get_profile, check_files_match_profile_type
+import logging
+
+logger = logging.getLogger(__name__)
+profile = await get_profile("api_key", 5800)  # JPEG profile
+
+# Valid JPEG files
+jpeg_files = ["event1.jpg", "event2.jpeg"]
+check_files_match_profile_type(jpeg_files, profile, logger)
+print("JPEG files validated successfully")
+
+# Invalid - RAW files with JPEG profile
+raw_files = ["photo1.cr2", "photo2.nef"]
+try:
+    check_files_match_profile_type(raw_files, profile, logger)
+except UploadError as e:
+    print(f"Error: {e}")  # JPG profile cannot be used with RAW files
+```
+
+### Pre-Upload Validation
+
+```python
+from imagen_sdk import get_profile, check_files_match_profile_type, ImagenClient
+import logging
+
+logger = logging.getLogger(__name__)
+
+# Get profile
+profile = await get_profile("api_key", 5700)
+files = ["photo1.cr2", "photo2.cr2", "photo3.cr2"]
+
+# Validate before uploading
+try:
+    check_files_match_profile_type(files, profile, logger)
+    
+    # Validation passed - proceed with upload
+    async with ImagenClient("api_key") as client:
+        project_uuid = await client.create_project()
+        await client.upload_images(project_uuid, files)
+        await client.start_editing(project_uuid, profile.profile_key)
+        
+except UploadError as e:
+    print(f"Cannot proceed - file validation failed: {e}")
+```
+
+### Handling Unsupported Files
+
+```python
+from imagen_sdk import get_profile, check_files_match_profile_type
+import logging
+
+logger = logging.getLogger(__name__)
+profile = await get_profile("api_key", 5700)  # RAW profile
+
+# Files with unsupported extensions
+files = ["photo1.cr2", "photo2.png", "photo3.tiff"]
+
+try:
+    check_files_match_profile_type(files, profile, logger)
+except UploadError as e:
+    # Error: RAW profile cannot be used with unsupported files: ['photo2.png', 'photo3.tiff']
+    print(f"Error: {e}")
+```
+
+### Use with quick_edit
+
+```python
+from imagen_sdk import get_profile, check_files_match_profile_type, quick_edit
+import logging
+
+logger = logging.getLogger(__name__)
+
+# Get profile
+profile = await get_profile("api_key", 5700)
+files = ["photo1.cr2", "photo2.cr2"]
+
+# Validate before running quick_edit
+try:
+    check_files_match_profile_type(files, profile, logger)
+    
+    # Validation passed - run quick_edit
+    result = await quick_edit(
+        api_key="api_key",
+        profile_key=profile.profile_key,
+        image_paths=files
+    )
+    print(f"Success! Project: {result.project_uuid}")
+    
+except UploadError as e:
+    print(f"Cannot proceed: {e}")
+```
+
+### Custom Error Messages
+
+```python
+from imagen_sdk import get_profile, check_files_match_profile_type
+from imagen_sdk.exceptions import UploadError
+import logging
+
+logger = logging.getLogger(__name__)
+profile = await get_profile("api_key", 5700)
+files = ["photo1.cr2", "photo2.jpg"]
+
+try:
+    check_files_match_profile_type(files, profile, logger)
+except UploadError as e:
+    # Provide user-friendly error message
+    if "JPG files" in str(e):
+        print("Error: This profile only works with RAW files.")
+        print("Please remove JPEG files or use a JPEG profile.")
+    elif "unsupported files" in str(e):
+        print("Error: Some files have unsupported formats.")
+        print("Supported RAW formats: .cr2, .nef, .dng, .arw, etc.")
+    else:
+        print(f"Validation error: {e}")
+```
+
+## Notes
+
+<Note>
+- This is a utility function that doesn't make API calls
+- It performs local file extension checking only
+- Files are not opened or read - only extensions are checked
+- The function uses case-insensitive extension matching
+- Mixed file types (RAW + JPEG) will always fail validation
+</Note>
+
+<Warning>
+This function only checks file extensions, not actual file contents. Ensure your files have correct extensions matching their format.
+</Warning>
+
+<Tip>
+Always call this function before uploading to catch file type mismatches early. This prevents wasted time uploading incompatible files.
+</Tip>
+
+## Internal Usage
+
+This function is automatically called by `quick_edit()` to validate files before upload. When using `ImagenClient` directly, you should call this function manually as a validation step.
+
+## See Also
+
+- [get_profile](/api/get-profile) - Get profile for validation
+- [get_profiles](/api/get-profiles) - List all available profiles
+- [quick_edit](/api/quick-edit) - Uses this validation internally
+- [ImagenClient.upload_images](/api/imagen-client#upload_images) - Upload validated files

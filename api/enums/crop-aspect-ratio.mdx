@@ -1,0 +1,224 @@
+---
+title: "CropAspectRatio"
+description: "Crop aspect ratio enumeration for image cropping"
+---
+
+## Overview
+
+The `CropAspectRatio` enum defines predefined aspect ratios that can be used with the `crop_aspect_ratio` parameter in `EditOptions`. These ratios are commonly used in professional photography for specific output formats.
+
+## Import
+
+```python
+from imagen_sdk import CropAspectRatio
+```
+
+## Enum Values
+
+<ParamField path="RATIO_2X3" type="string">
+  Standard 2:3 aspect ratio, commonly used in portrait and traditional photography.
+  
+  **Value:** `"2X3"`
+  
+  **Use cases:**
+  - Traditional portrait orientation
+  - 4x6 inch prints
+  - Standard photo frames
+</ParamField>
+
+<ParamField path="RATIO_4X5" type="string">
+  4:5 aspect ratio, popular for social media and modern portrait photography.
+  
+  **Value:** `"4X5"`
+  
+  **Use cases:**
+  - Instagram portrait posts
+  - Modern portrait photography
+  - 8x10 inch prints
+</ParamField>
+
+<ParamField path="RATIO_5X7" type="string">
+  5:7 aspect ratio, commonly used for standard print sizes.
+  
+  **Value:** `"5X7"`
+  
+  **Use cases:**
+  - 5x7 inch prints
+  - Standard photo frames
+  - Portfolio prints
+</ParamField>
+
+## Usage Examples
+
+### Using Enum Values
+
+```python
+from imagen_sdk import quick_edit, EditOptions, CropAspectRatio
+
+# Using the enum
+edit_options = EditOptions(
+    crop=True,
+    crop_aspect_ratio=CropAspectRatio.RATIO_2X3.value
+)
+
+result = await quick_edit(
+    api_key="your_api_key",
+    profile_key=5700,
+    image_paths=["photo.cr2"],
+    edit_options=edit_options,
+    download=True
+)
+```
+
+### Using String Values Directly
+
+You can also use custom aspect ratios as strings without the enum:
+
+```python
+from imagen_sdk import EditOptions
+
+# Classic 35mm film ratio
+edit_options = EditOptions(
+    crop=True,
+    crop_aspect_ratio="3:2"
+)
+
+# Cinematic widescreen
+edit_options = EditOptions(
+    crop=True,
+    crop_aspect_ratio="16:9"
+)
+
+# Square format for Instagram
+edit_options = EditOptions(
+    crop=True,
+    crop_aspect_ratio="1:1"
+)
+
+# Portrait orientation for social media
+edit_options = EditOptions(
+    crop=True,
+    crop_aspect_ratio="4:5"
+)
+```
+
+### Portrait Photography with 4:5 Ratio
+
+```python
+from imagen_sdk import quick_edit, EditOptions, CropAspectRatio, PhotographyType
+
+# Optimize for Instagram portrait posts
+edit_options = EditOptions(
+    portrait_crop=True,
+    smooth_skin=True,
+    crop_aspect_ratio=CropAspectRatio.RATIO_4X5.value
+)
+
+result = await quick_edit(
+    api_key="your_api_key",
+    profile_key=5700,
+    image_paths=["portrait1.nef", "portrait2.cr2"],
+    photography_type=PhotographyType.PORTRAITS,
+    edit_options=edit_options,
+    download=True
+)
+```
+
+### Wedding Photography with Standard Print Ratio
+
+```python
+from imagen_sdk import ImagenClient, EditOptions, CropAspectRatio, PhotographyType
+
+async with ImagenClient("your_api_key") as client:
+    project_uuid = await client.create_project("Wedding Album")
+    
+    await client.upload_images(project_uuid, ["ceremony.cr2", "reception.nef"])
+    
+    # Use 5:7 ratio for traditional wedding album prints
+    edit_options = EditOptions(
+        crop=True,
+        straighten=True,
+        crop_aspect_ratio=CropAspectRatio.RATIO_5X7.value
+    )
+    
+    await client.start_editing(
+        project_uuid,
+        profile_key=5700,
+        photography_type=PhotographyType.WEDDING,
+        edit_options=edit_options
+    )
+```
+
+### Landscape Photography with Custom Ratio
+
+```python
+from imagen_sdk import quick_edit, EditOptions, PhotographyType
+
+# Use cinematic 16:9 ratio for landscape photos
+edit_options = EditOptions(
+    crop=True,
+    straighten=True,
+    sky_replacement=True,
+    crop_aspect_ratio="16:9"  # Custom ratio as string
+)
+
+result = await quick_edit(
+    api_key="your_api_key",
+    profile_key=5700,
+    image_paths=["landscape1.arw", "landscape2.raf"],
+    photography_type=PhotographyType.LANDSCAPE_NATURE,
+    edit_options=edit_options,
+    download=True
+)
+```
+
+### Multiple Aspect Ratios Comparison
+
+```python
+from imagen_sdk import quick_edit, EditOptions, CropAspectRatio
+
+# Process the same images with different aspect ratios
+ratios = [
+    (CropAspectRatio.RATIO_2X3.value, "2x3_output"),
+    (CropAspectRatio.RATIO_4X5.value, "4x5_output"),
+    (CropAspectRatio.RATIO_5X7.value, "5x7_output"),
+    ("16:9", "cinematic_output"),
+    ("1:1", "square_output")
+]
+
+for ratio, output_dir in ratios:
+    edit_options = EditOptions(
+        crop=True,
+        crop_aspect_ratio=ratio
+    )
+    
+    result = await quick_edit(
+        api_key="your_api_key",
+        profile_key=5700,
+        image_paths=["photo.cr2"],
+        edit_options=edit_options,
+        download=True,
+        download_dir=output_dir
+    )
+    print(f"Processed with {ratio} ratio: {len(result.downloaded_files)} files")
+```
+
+## Notes
+
+- The `crop_aspect_ratio` parameter is **optional** and only applies when a crop option is enabled
+- You can use the enum values or provide custom ratios as strings (e.g., "16:9", "3:2", "1:1")
+- The aspect ratio must be specified in the format `"width:height"` when using custom strings
+- Aspect ratios only take effect when combined with `crop=True`, `portrait_crop=True`, or `headshot_crop=True`
+- The enum provides commonly used ratios, but you're not limited to these values
+
+## Common Aspect Ratios Reference
+
+| Ratio | Format | Common Uses |
+|-------|--------|-------------|
+| `2:3` | Traditional | 4x6 prints, portrait photography |
+| `3:2` | Classic 35mm | Standard DSLR output, 6x4 prints |
+| `4:5` | Modern portrait | Instagram, 8x10 prints |
+| `5:7` | Standard print | 5x7 frames, album prints |
+| `16:9` | Widescreen | Cinematic, landscape, video thumbnails |
+| `1:1` | Square | Instagram, profile pictures |
+| `9:16` | Vertical video | Stories, reels, TikTok |

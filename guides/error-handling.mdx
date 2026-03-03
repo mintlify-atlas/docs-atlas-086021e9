@@ -1,0 +1,660 @@
+---
+title: "Error Handling"
+description: "Comprehensive error handling patterns and troubleshooting for the Imagen AI SDK"
+---
+
+This guide covers all error types, common issues, and best practices for handling errors gracefully in your photo editing workflows.
+
+## Exception Types
+
+The SDK provides specific exception types for different error scenarios:
+
+```python
+from imagen_sdk import (
+    ImagenError,           # Base exception for all SDK errors
+    AuthenticationError,   # Invalid API key or unauthorized access
+    ProjectError,         # Project creation, editing, or export failures
+    UploadError,          # File upload failures or validation errors
+    DownloadError         # File download failures
+)
+```
+
+### Exception Hierarchy
+
+```
+ImagenError (base)
+├── AuthenticationError
+├── ProjectError
+├── UploadError
+└── DownloadError
+```
+
+All SDK exceptions inherit from `ImagenError`, so you can catch all SDK-specific errors with a single exception handler.
+
+## Basic Error Handling
+
+Handle errors in a `quick_edit` workflow:
+
+```python
+import asyncio
+from imagen_sdk import (
+    quick_edit,
+    EditOptions,
+    ImagenError,
+    AuthenticationError,
+    UploadError,
+    ProjectError,
+    DownloadError
+)
+
+async def main():
+    try:
+        result = await quick_edit(
+            api_key="your_api_key",
+            profile_key=5700,
+            image_paths=["photo1.cr2", "photo2.jpg"]  # Mixed types - will fail
+        )
+    except AuthenticationError:
+        print("❌ Invalid API key - check your credentials")
+    except UploadError as e:
+        print(f"❌ Upload failed: {e}")
+        # Common causes: mixed file types, invalid paths, network issues
+    except ProjectError as e:
+        print(f"❌ Project operation failed: {e}")
+        # Common causes: duplicate project name, editing failures
+    except DownloadError as e:
+        print(f"❌ Download failed: {e}")
+        # Common causes: expired URLs, network issues, disk space
+    except ImagenError as e:
+        print(f"❌ General SDK error: {e}")
+        # Catch-all for other API errors
+    except Exception as e:
+        print(f"❌ Unexpected error: {e}")
+
+asyncio.run(main())
+```
+
+## Detailed Error Handling
+
+### Authentication Errors
+
+`AuthenticationError` is raised when API authentication fails:
+
+```python
+from imagen_sdk import ImagenClient, AuthenticationError
+
+async def test_authentication():
+    try:
+        async with ImagenClient("invalid_api_key") as client:
+            profiles = await client.get_profiles()
+    except AuthenticationError as e:
+        print(f"❌ Authentication failed: {e}")
+        print("\nTroubleshooting steps:")
+        print("1. Verify your API key is correct")
+        print("2. Check that your API key is activated")
+        print("3. Contact support at https://support.imagen-ai.com/hc")
+```
+
+**Common causes:**
+- Invalid or expired API key
+- API key not activated by support
+- Incorrect environment variable
+
+**Solutions:**
+```python
+import os
+
+# Verify API key is set
+api_key = os.getenv("IMAGEN_API_KEY")
+if not api_key:
+    print("❌ IMAGEN_API_KEY environment variable not set")
+    print("Set it with: export IMAGEN_API_KEY='your_key'")
+    exit(1)
+
+print(f"Using API key: {api_key[:10]}...{api_key[-4:]}")
+```
+
+### Upload Errors
+
+`UploadError` is raised when file uploads fail:
+
+```python
+from imagen_sdk import ImagenClient, UploadError
+from pathlib import Path
+
+async def handle_upload_errors():
+    try:
+        async with ImagenClient("your_api_key") as client:
+            project_uuid = await client.create_project("Test Project")
+            
+            upload_result = await client.upload_images(
+                project_uuid,
+                ["photo1.cr2", "photo2.nef", "photo3.dng"]
+            )
+            
+            # Check for partial failures
+            if upload_result.failed > 0:
+                print(f"⚠️  {upload_result.failed} files failed to upload:")
+                for result in upload_result.results:
+                    if not result.success:
+                        print(f"  - {result.file}: {result.error}")
+            
+            # Proceed if at least some files uploaded
+            if upload_result.successful > 0:
+                print(f"✅ {upload_result.successful} files uploaded successfully")
+            else:
+                raise UploadError("No files uploaded successfully")
+    
+    except UploadError as e:
+        print(f"❌ Upload error: {e}")
+        print("\nCommon causes:")
+        print("- Mixed RAW and JPEG files (must be separate projects)")
+        print("- Invalid file paths")
+        print("- Network connectivity issues")
+        print("- Unsupported file formats")
+```
+
+**File validation before upload:**
+
+```python
+from imagen_sdk import (
+    get_profile,
+    check_files_match_profile_type,
+    SUPPORTED_FILE_FORMATS,
+    UploadError
+)
+import logging
+from pathlib import Path
+
+async def validate_before_upload():
+    logger = logging.getLogger("validation")
+    
+    files = ["photo1.cr2", "photo2.nef", "photo3.jpg"]
+    
+    # Check if files exist
+    for file_path in files:
+        if not Path(file_path).exists():
+            print(f"❌ File not found: {file_path}")
+            return
+    
+    # Check if formats are supported
+    for file_path in files:
+        ext = Path(file_path).suffix.lower()
+        if ext not in SUPPORTED_FILE_FORMATS:
+            print(f"❌ Unsupported format: {file_path} ({ext})")
+            print(f"Supported formats: {', '.join(SUPPORTED_FILE_FORMATS)}")
+            return
+    
+    # Check compatibility with profile
+    profile = await get_profile("api_key", profile_key=5700)
+    try:
+        check_files_match_profile_type(files, profile, logger)
+        print("✅ All files are compatible with the profile")
+    except UploadError as e:
+        print(f"❌ File validation failed: {e}")
+        return
+```
+
+### Project Errors
+
+`ProjectError` is raised when project operations fail:
+
+```python
+from imagen_sdk import ImagenClient, ProjectError
+
+async def handle_project_errors():
+    try:
+        async with ImagenClient("your_api_key") as client:
+            # This will fail if project name already exists
+            project_uuid = await client.create_project("My Project")
+    
+    except ProjectError as e:
+        print(f"❌ Project error: {e}")
+        
+        if "already exists" in str(e).lower():
+            print("\nSolution: Use a unique project name")
+            print("Examples:")
+            print("  - Include timestamp: 'My_Project_2024_03_15'")
+            print("  - Use UUID: import uuid; f'My_Project_{uuid.uuid4().hex[:8]}'")
+            print("  - Auto-generate: await client.create_project()")
+        else:
+            print("\nCommon causes:")
+            print("- Duplicate project name")
+            print("- Editing process failed")
+            print("- Export process failed")
+```
+
+**Best practice: Unique project names**
+
+```python
+import uuid
+from datetime import datetime
+from imagen_sdk import ImagenClient
+
+async def create_unique_project():
+    async with ImagenClient("your_api_key") as client:
+        # Option 1: Timestamp
+        timestamp = datetime.now().strftime("%Y_%m_%d_%H%M%S")
+        project_uuid = await client.create_project(f"Wedding_{timestamp}")
+        
+        # Option 2: UUID suffix
+        unique_id = uuid.uuid4().hex[:8]
+        project_uuid = await client.create_project(f"Session_{unique_id}")
+        
+        # Option 3: Auto-generate (no name)
+        project_uuid = await client.create_project()
+        print(f"Created project: {project_uuid}")
+```
+
+### Download Errors
+
+`DownloadError` is raised when file downloads fail:
+
+```python
+from imagen_sdk import ImagenClient, DownloadError
+import asyncio
+
+async def handle_download_errors():
+    try:
+        async with ImagenClient("your_api_key") as client:
+            project_uuid = "existing-project-uuid"
+            
+            download_links = await client.get_download_links(project_uuid)
+            
+            downloaded_files = await client.download_files(
+                download_links,
+                output_dir="edited_photos"
+            )
+            
+            print(f"✅ Downloaded {len(downloaded_files)} files")
+    
+    except DownloadError as e:
+        print(f"❌ Download error: {e}")
+        print("\nCommon causes:")
+        print("- Expired download URLs")
+        print("- Network connectivity issues")
+        print("- Insufficient disk space")
+        print("- Permission issues in output directory")
+        print("\nRetry options:")
+        print("- Get fresh download links")
+        print("- Check available disk space")
+        print("- Verify output directory permissions")
+```
+
+**Retry logic for downloads:**
+
+```python
+import asyncio
+from imagen_sdk import ImagenClient, DownloadError
+
+async def download_with_retry(client: ImagenClient, project_uuid: str, max_retries: int = 3):
+    """Download files with retry logic."""
+    for attempt in range(max_retries):
+        try:
+            # Get fresh download links
+            download_links = await client.get_download_links(project_uuid)
+            
+            # Attempt download
+            downloaded_files = await client.download_files(
+                download_links,
+                output_dir="edited_photos"
+            )
+            
+            print(f"✅ Downloaded {len(downloaded_files)} files")
+            return downloaded_files
+        
+        except DownloadError as e:
+            print(f"⚠️  Download attempt {attempt + 1} failed: {e}")
+            
+            if attempt < max_retries - 1:
+                wait_time = 2 ** attempt  # Exponential backoff
+                print(f"Retrying in {wait_time} seconds...")
+                await asyncio.sleep(wait_time)
+            else:
+                print(f"❌ Download failed after {max_retries} attempts")
+                raise
+```
+
+## Comprehensive Error Handling Example
+
+A complete example with all error types:
+
+```python
+import asyncio
+import os
+import sys
+import logging
+from pathlib import Path
+from imagen_sdk import (
+    ImagenClient,
+    EditOptions,
+    PhotographyType,
+    ImagenError,
+    AuthenticationError,
+    ProjectError,
+    UploadError,
+    DownloadError
+)
+
+# Set up logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='[%(levelname)s] %(message)s'
+)
+logger = logging.getLogger(__name__)
+
+async def robust_photo_editing():
+    """Complete photo editing workflow with comprehensive error handling."""
+    
+    # 1. Validate API key
+    api_key = os.getenv("IMAGEN_API_KEY")
+    if not api_key:
+        logger.error("IMAGEN_API_KEY environment variable not set")
+        logger.info("Set it with: export IMAGEN_API_KEY='your_key'")
+        sys.exit(1)
+    
+    # 2. Validate image paths
+    image_paths = ["photo1.cr2", "photo2.nef", "photo3.dng"]
+    for path in image_paths:
+        if not Path(path).exists():
+            logger.error(f"Image file not found: {path}")
+            sys.exit(1)
+    
+    logger.info(f"Processing {len(image_paths)} images")
+    
+    try:
+        # 3. Initialize client
+        async with ImagenClient(api_key) as client:
+            logger.info("✅ Client initialized")
+            
+            # 4. Create project with unique name
+            import uuid
+            project_name = f"Editing_Session_{uuid.uuid4().hex[:8]}"
+            
+            try:
+                project_uuid = await client.create_project(project_name)
+                logger.info(f"✅ Project created: {project_uuid}")
+            except ProjectError as e:
+                logger.error(f"Failed to create project: {e}")
+                raise
+            
+            # 5. Upload images
+            try:
+                logger.info("Uploading images...")
+                
+                def upload_progress(current, total, filename):
+                    percent = (current / total) * 100
+                    logger.info(f"Upload: {percent:.1f}% ({current}/{total})")
+                
+                upload_result = await client.upload_images(
+                    project_uuid,
+                    image_paths,
+                    calculate_md5=True,
+                    progress_callback=upload_progress
+                )
+                
+                logger.info(f"Upload complete: {upload_result.successful}/{upload_result.total}")
+                
+                # Handle partial upload failures
+                if upload_result.failed > 0:
+                    logger.warning(f"{upload_result.failed} files failed to upload:")
+                    for result in upload_result.results:
+                        if not result.success:
+                            logger.warning(f"  - {result.file}: {result.error}")
+                
+                # Abort if no files uploaded
+                if upload_result.successful == 0:
+                    raise UploadError("No files uploaded successfully")
+            
+            except UploadError as e:
+                logger.error(f"Upload failed: {e}")
+                raise
+            
+            # 6. Start editing
+            try:
+                logger.info("Starting editing process...")
+                
+                edit_options = EditOptions(
+                    crop=True,
+                    straighten=True,
+                    smooth_skin=True
+                )
+                
+                await client.start_editing(
+                    project_uuid,
+                    profile_key=5700,
+                    photography_type=PhotographyType.PORTRAITS,
+                    edit_options=edit_options
+                )
+                
+                logger.info("✅ Editing complete")
+            
+            except ProjectError as e:
+                logger.error(f"Editing failed: {e}")
+                raise
+            
+            # 7. Download edited files with retry
+            max_download_retries = 3
+            for attempt in range(max_download_retries):
+                try:
+                    logger.info(f"Downloading edited files (attempt {attempt + 1})...")
+                    
+                    download_links = await client.get_download_links(project_uuid)
+                    logger.info(f"Found {len(download_links)} download links")
+                    
+                    def download_progress(current, total, message):
+                        percent = (current / total) * 100
+                        logger.info(f"Download: {percent:.1f}% ({current}/{total})")
+                    
+                    downloaded_files = await client.download_files(
+                        download_links,
+                        output_dir="edited_photos",
+                        progress_callback=download_progress
+                    )
+                    
+                    logger.info(f"✅ Downloaded {len(downloaded_files)} files to ./edited_photos/")
+                    break  # Success, exit retry loop
+                
+                except DownloadError as e:
+                    if attempt < max_download_retries - 1:
+                        wait_time = 2 ** attempt
+                        logger.warning(f"Download failed: {e}")
+                        logger.info(f"Retrying in {wait_time} seconds...")
+                        await asyncio.sleep(wait_time)
+                    else:
+                        logger.error(f"Download failed after {max_download_retries} attempts")
+                        raise
+    
+    except AuthenticationError as e:
+        logger.error(f"Authentication failed: {e}")
+        logger.info("Check your API key and ensure it's activated")
+        sys.exit(1)
+    
+    except (UploadError, ProjectError, DownloadError) as e:
+        logger.error(f"Operation failed: {e}")
+        sys.exit(1)
+    
+    except ImagenError as e:
+        logger.error(f"SDK error: {e}")
+        sys.exit(1)
+    
+    except Exception as e:
+        logger.error(f"Unexpected error: {e}")
+        logger.exception(e)  # Print full traceback
+        sys.exit(1)
+    
+    logger.info("🎉 Photo editing workflow completed successfully!")
+
+if __name__ == "__main__":
+    asyncio.run(robust_photo_editing())
+```
+
+## Common Issues and Solutions
+
+### Issue: Mixed File Types
+
+**Error:**
+```
+UploadError: RAW profile cannot be used with JPG files: ['photo.jpg']
+```
+
+**Solution:**
+```python
+from imagen_sdk import RAW_EXTENSIONS, JPG_EXTENSIONS
+from pathlib import Path
+
+# Separate files by type
+all_files = [Path("photo1.cr2"), Path("photo2.jpg"), Path("photo3.nef")]
+
+raw_files = [f for f in all_files if f.suffix.lower() in RAW_EXTENSIONS]
+jpeg_files = [f for f in all_files if f.suffix.lower() in JPG_EXTENSIONS]
+
+# Process separately
+if raw_files:
+    # Create project for RAW files
+    raw_result = await quick_edit(
+        api_key="your_key",
+        profile_key=5700,  # RAW profile
+        image_paths=[str(f) for f in raw_files]
+    )
+
+if jpeg_files:
+    # Create separate project for JPEG files
+    jpeg_result = await quick_edit(
+        api_key="your_key",
+        profile_key=5701,  # JPEG profile
+        image_paths=[str(f) for f in jpeg_files]
+    )
+```
+
+### Issue: Project Name Exists
+
+**Error:**
+```
+ProjectError: Project with name 'Wedding Photos' already exists
+```
+
+**Solution:**
+```python
+import uuid
+from datetime import datetime
+
+# Option 1: Add timestamp
+timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+project_name = f"Wedding_Photos_{timestamp}"
+
+# Option 2: Add UUID
+unique_id = uuid.uuid4().hex[:8]
+project_name = f"Wedding_Photos_{unique_id}"
+
+# Option 3: Let SDK generate UUID
+project_uuid = await client.create_project()  # No name = auto UUID
+```
+
+### Issue: No Files Found
+
+**Error:**
+```
+UploadError: No valid local files found to upload
+```
+
+**Solution:**
+```python
+from pathlib import Path
+
+# Verify files exist
+image_paths = ["photo1.cr2", "photo2.nef"]
+for path in image_paths:
+    if not Path(path).exists():
+        print(f"❌ File not found: {path}")
+        print(f"  Current directory: {Path.cwd()}")
+        print(f"  Absolute path would be: {Path(path).absolute()}")
+
+# Use absolute paths if needed
+absolute_paths = [str(Path(p).absolute()) for p in image_paths]
+```
+
+## Debug Mode
+
+Enable detailed logging for troubleshooting:
+
+```python
+import logging
+from imagen_sdk import ImagenClient
+
+# Enable debug logging
+logging.basicConfig(
+    level=logging.DEBUG,
+    format='[%(asctime)s] [%(levelname)s] %(name)s: %(message)s',
+    datefmt='%Y-%m-%d %H:%M:%S'
+)
+
+# Or set custom logger for SDK
+logger = logging.getLogger("imagen_debug")
+logger.setLevel(logging.DEBUG)
+
+handler = logging.StreamHandler()
+formatter = logging.Formatter('[%(levelname)s] %(name)s: %(message)s')
+handler.setFormatter(formatter)
+logger.addHandler(handler)
+
+ImagenClient.set_logger(logger, logging.DEBUG)
+
+# Now all SDK operations will log detailed information
+```
+
+## Getting Help
+
+If you encounter an error not covered here:
+
+1. **Check SDK version:**
+   ```python
+   import imagen_sdk
+   print(f"SDK version: {imagen_sdk.__version__}")
+   ```
+
+2. **Enable debug logging** (see above)
+
+3. **Create minimal reproduction:**
+   ```python
+   import asyncio
+   from imagen_sdk import quick_edit
+   
+   async def test():
+       try:
+           result = await quick_edit(
+               api_key="your_api_key",
+               profile_key=5700,
+               image_paths=["test_photo.dng"]
+           )
+           print("✅ Success!")
+       except Exception as e:
+           print(f"❌ Error: {e}")
+           raise
+   
+   asyncio.run(test())
+   ```
+
+4. **Contact support** with:
+   - SDK version
+   - Python version (`python --version`)
+   - Full error traceback
+   - Minimal code example
+   - Support URL: https://support.imagen-ai.com/hc
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Basic Editing" icon="image" href="/guides/basic-editing">
+    Simple editing workflows
+  </Card>
+  <Card title="Advanced Workflow" icon="gears" href="/guides/advanced-workflow">
+    Step-by-step control with ImagenClient
+  </Card>
+  <Card title="Batch Processing" icon="layer-group" href="/guides/batch-processing">
+    Error handling for large collections
+  </Card>
+  <Card title="API Reference" icon="book" href="/api/exceptions">
+    Complete exception documentation
+  </Card>
+</CardGroup>

@@ -1,0 +1,504 @@
+---
+title: "File Formats"
+description: "Supported RAW and JPEG file formats for Imagen AI processing"
+---
+
+## Overview
+
+Imagen AI supports a wide range of professional photography file formats. The SDK includes built-in constants for file validation and supports both RAW camera formats and standard JPEG images.
+
+<Warning>
+  **Important**: A single project can contain **either** RAW files **or** JPEG files, but **not both** types mixed together. Each file type must be in a separate project.
+</Warning>
+
+## Supported Formats
+
+### RAW Extensions
+
+The SDK supports 18 different RAW file formats from major camera manufacturers:
+
+<AccordionGroup>
+  <Accordion title="Canon">
+    - `.cr2` - Canon Raw 2 (EOS 5D, 7D, etc.)
+    - `.cr3` - Canon Raw 3 (EOS R, R5, R6, etc.)
+    - `.crw` - Canon Raw (older EOS models)
+  </Accordion>
+  
+  <Accordion title="Nikon">
+    - `.nef` - Nikon Electronic Format
+    - `.nrw` - Nikon Raw (Coolpix models)
+  </Accordion>
+  
+  <Accordion title="Sony">
+    - `.arw` - Sony Alpha Raw
+    - `.srf` - Sony Raw Format
+    - `.sr2` - Sony Raw 2
+  </Accordion>
+  
+  <Accordion title="Olympus">
+    - `.orf` - Olympus Raw Format
+  </Accordion>
+  
+  <Accordion title="Fujifilm">
+    - `.raf` - Fuji Raw Format
+  </Accordion>
+  
+  <Accordion title="Panasonic">
+    - `.rw2` - Panasonic Raw 2
+    - `.raw` - Panasonic Raw
+  </Accordion>
+  
+  <Accordion title="Pentax">
+    - `.ptx` - Pentax Raw (legacy)
+    - `.pef` - Pentax Electronic Format
+  </Accordion>
+  
+  <Accordion title="Leica">
+    - `.rwl` - Leica Raw
+  </Accordion>
+  
+  <Accordion title="Samsung">
+    - `.srw` - Samsung Raw
+  </Accordion>
+  
+  <Accordion title="Hasselblad & Phase One">
+    - `.3fr` - Hasselblad 3F Raw
+    - `.fff` - Phase One Flexible File Format
+  </Accordion>
+  
+  <Accordion title="Universal">
+    - `.dng` - Adobe Digital Negative (universal RAW format)
+  </Accordion>
+</AccordionGroup>
+
+### JPEG Extensions
+
+Standard JPEG image formats:
+
+- `.jpg` - JPEG image
+- `.jpeg` - JPEG image (alternative extension)
+
+## SDK Constants
+
+The SDK provides three constants for file format validation:
+
+```python
+from imagen_sdk import (
+    RAW_EXTENSIONS,           # Set of RAW file extensions
+    JPG_EXTENSIONS,           # Set of JPEG file extensions  
+    SUPPORTED_FILE_FORMATS    # All supported formats combined
+)
+```
+
+### RAW_EXTENSIONS
+
+A set containing all supported RAW file extensions:
+
+```python
+RAW_EXTENSIONS = {
+    ".dng", ".nef", ".cr2", ".arw", ".nrw", ".crw", ".srf", 
+    ".sr2", ".orf", ".raw", ".rw2", ".raf", ".ptx", ".pef", 
+    ".rwl", ".srw", ".cr3", ".3fr", ".fff"
+}
+```
+
+<Note>
+  All extensions are lowercase and include the leading dot (`.`).
+</Note>
+
+### JPG_EXTENSIONS
+
+A set containing supported JPEG file extensions:
+
+```python
+JPG_EXTENSIONS = {".jpg", ".jpeg"}
+```
+
+### SUPPORTED_FILE_FORMATS
+
+Combination of all RAW and JPEG formats:
+
+```python
+SUPPORTED_FILE_FORMATS = RAW_EXTENSIONS | JPG_EXTENSIONS
+# Contains all 20 supported file extensions
+```
+
+## File Validation
+
+### Check if File is Supported
+
+```python
+from pathlib import Path
+from imagen_sdk import SUPPORTED_FILE_FORMATS
+
+file_path = Path("photo.cr2")
+file_ext = file_path.suffix.lower()
+
+if file_ext in SUPPORTED_FILE_FORMATS:
+    print(f"✅ {file_ext} is supported")
+else:
+    print(f"❌ {file_ext} is not supported")
+```
+
+### Check File Type
+
+```python
+from pathlib import Path
+from imagen_sdk import RAW_EXTENSIONS, JPG_EXTENSIONS
+
+def get_file_type(file_path: str) -> str:
+    ext = Path(file_path).suffix.lower()
+    
+    if ext in RAW_EXTENSIONS:
+        return "RAW"
+    elif ext in JPG_EXTENSIONS:
+        return "JPEG"
+    else:
+        return "UNSUPPORTED"
+
+# Examples
+print(get_file_type("photo.cr2"))   # "RAW"
+print(get_file_type("image.jpg"))   # "JPEG"
+print(get_file_type("file.png"))    # "UNSUPPORTED"
+```
+
+### Validate Multiple Files
+
+```python
+from pathlib import Path
+from imagen_sdk import RAW_EXTENSIONS, JPG_EXTENSIONS
+
+def validate_file_consistency(file_paths: list[str]) -> tuple[bool, str]:
+    """
+    Check if all files are the same type (all RAW or all JPEG).
+    Returns (is_valid, message)
+    """
+    raw_files = []
+    jpeg_files = []
+    unsupported_files = []
+    
+    for path in file_paths:
+        ext = Path(path).suffix.lower()
+        
+        if ext in RAW_EXTENSIONS:
+            raw_files.append(path)
+        elif ext in JPG_EXTENSIONS:
+            jpeg_files.append(path)
+        else:
+            unsupported_files.append(path)
+    
+    # Check for unsupported files
+    if unsupported_files:
+        return False, f"Unsupported files: {unsupported_files}"
+    
+    # Check for mixed types
+    if raw_files and jpeg_files:
+        return False, "Cannot mix RAW and JPEG files in same project"
+    
+    # All valid and consistent
+    if raw_files:
+        return True, f"All {len(raw_files)} files are RAW format"
+    elif jpeg_files:
+        return True, f"All {len(jpeg_files)} files are JPEG format"
+    else:
+        return False, "No files provided"
+
+# Example usage
+files = ["photo1.cr2", "photo2.nef", "photo3.dng"]
+is_valid, message = validate_file_consistency(files)
+print(f"{is_valid}: {message}")
+# True: All 3 files are RAW format
+```
+
+## Finding Supported Files
+
+### Find All Supported Files in Directory
+
+```python
+from pathlib import Path
+from imagen_sdk import SUPPORTED_FILE_FORMATS
+
+def find_supported_files(directory: str) -> dict[str, list[Path]]:
+    """
+    Find all supported image files in a directory.
+    Returns dict with 'raw' and 'jpeg' file lists.
+    """
+    from imagen_sdk import RAW_EXTENSIONS, JPG_EXTENSIONS
+    
+    directory_path = Path(directory)
+    
+    raw_files = []
+    jpeg_files = []
+    
+    for file in directory_path.iterdir():
+        if file.is_file():
+            ext = file.suffix.lower()
+            if ext in RAW_EXTENSIONS:
+                raw_files.append(file)
+            elif ext in JPG_EXTENSIONS:
+                jpeg_files.append(file)
+    
+    return {
+        'raw': sorted(raw_files),
+        'jpeg': sorted(jpeg_files)
+    }
+
+# Usage
+files = find_supported_files(".")
+print(f"Found {len(files['raw'])} RAW files")
+print(f"Found {len(files['jpeg'])} JPEG files")
+```
+
+### Filter Files by Extension
+
+```python
+from pathlib import Path
+from imagen_sdk import RAW_EXTENSIONS
+
+def find_raw_files(directory: str) -> list[str]:
+    """Find all RAW files in directory."""
+    directory_path = Path(directory)
+    raw_files = []
+    
+    for ext in RAW_EXTENSIONS:
+        # Use glob for each extension
+        raw_files.extend(
+            str(p) for p in directory_path.glob(f"*{ext}")
+        )
+    
+    return sorted(raw_files)
+
+# Usage
+raw_photos = find_raw_files("./wedding_photos")
+print(f"Found {len(raw_photos)} RAW files")
+```
+
+## Profile and File Type Matching
+
+<Warning>
+  Profiles are trained on specific file types. A RAW profile can only process RAW files, and a JPEG profile can only process JPEG files.
+</Warning>
+
+### Automatic Validation
+
+Use the SDK's built-in validation:
+
+```python
+from imagen_sdk import get_profile, check_files_match_profile_type
+import logging
+
+# Get profile
+profile = await get_profile("your_api_key", profile_key=5700)
+print(f"Profile works with: {profile.image_type} files")
+
+# Validate files
+files = ["photo1.cr2", "photo2.nef", "photo3.dng"]
+logger = logging.getLogger("validation")
+
+try:
+    check_files_match_profile_type(files, profile, logger)
+    print("✅ Files match profile type")
+except UploadError as e:
+    print(f"❌ Validation failed: {e}")
+```
+
+### Manual Validation
+
+```python
+from pathlib import Path
+from imagen_sdk import RAW_EXTENSIONS, JPG_EXTENSIONS
+
+def validate_with_profile(files: list[str], profile_image_type: str) -> bool:
+    """
+    Validate files match profile image type.
+    profile_image_type: "RAW" or "JPG"
+    """
+    for file in files:
+        ext = Path(file).suffix.lower()
+        
+        if profile_image_type == "RAW":
+            if ext not in RAW_EXTENSIONS:
+                print(f"❌ {file} is not RAW format")
+                return False
+        elif profile_image_type == "JPG":
+            if ext not in JPG_EXTENSIONS:
+                print(f"❌ {file} is not JPEG format")
+                return False
+    
+    return True
+
+# Usage
+raw_files = ["photo1.cr2", "photo2.nef"]
+is_valid = validate_with_profile(raw_files, "RAW")
+print(f"Validation result: {is_valid}")
+```
+
+## Common Validation Errors
+
+### Error: Mixed File Types
+
+```python
+# ❌ INVALID: Cannot mix RAW and JPEG
+files = ["photo1.cr2", "photo2.jpg", "photo3.nef"]
+
+# Error: Projects can contain either RAW or JPEG, not both
+```
+
+**Solution**: Separate into two projects:
+
+```python
+# ✅ VALID: Separate projects
+raw_files = ["photo1.cr2", "photo3.nef"]
+jpeg_files = ["photo2.jpg"]
+
+# Process RAW files
+raw_project = await client.create_project("RAW_Project")
+await client.upload_images(raw_project, raw_files)
+
+# Process JPEG files separately  
+jpeg_project = await client.create_project("JPEG_Project")
+await client.upload_images(jpeg_project, jpeg_files)
+```
+
+### Error: Profile Mismatch
+
+```python
+# ❌ INVALID: RAW profile with JPEG files
+profile.image_type = "RAW"
+files = ["photo1.jpg", "photo2.jpeg"]
+
+# Error: RAW profile cannot be used with JPG files
+```
+
+**Solution**: Use correct profile type:
+
+```python
+# ✅ VALID: Match profile type to files
+profiles = await client.get_profiles()
+
+# For RAW files, use RAW profile
+raw_profile = next(p for p in profiles if p.image_type == "RAW")
+raw_files = ["photo1.cr2", "photo2.nef"]
+
+# For JPEG files, use JPEG profile
+jpeg_profile = next(p for p in profiles if p.image_type == "JPG")
+jpeg_files = ["photo1.jpg", "photo2.jpeg"]
+```
+
+### Error: Unsupported Format
+
+```python
+# ❌ INVALID: PNG not supported
+files = ["photo1.png", "photo2.tiff"]
+
+# These formats are not supported by Imagen AI
+```
+
+**Solution**: Convert to supported format:
+
+```python
+# ✅ VALID: Use supported formats
+files = ["photo1.jpg", "photo2.jpeg"]  # JPEG
+# or
+files = ["photo1.dng", "photo2.cr2"]   # RAW
+```
+
+## Complete Validation Example
+
+```python
+import asyncio
+from pathlib import Path
+from imagen_sdk import (
+    ImagenClient,
+    get_profiles,
+    RAW_EXTENSIONS,
+    JPG_EXTENSIONS,
+    SUPPORTED_FILE_FORMATS
+)
+
+async def process_directory(directory: str):
+    """Process all supported files in a directory."""
+    
+    # 1. Find all supported files
+    dir_path = Path(directory)
+    raw_files = []
+    jpeg_files = []
+    
+    for file in dir_path.iterdir():
+        if file.is_file():
+            ext = file.suffix.lower()
+            if ext in RAW_EXTENSIONS:
+                raw_files.append(str(file))
+            elif ext in JPG_EXTENSIONS:
+                jpeg_files.append(str(file))
+    
+    print(f"Found {len(raw_files)} RAW and {len(jpeg_files)} JPEG files")
+    
+    # 2. Get profiles
+    profiles = await get_profiles("your_api_key")
+    raw_profile = next((p for p in profiles if p.image_type == "RAW"), None)
+    jpeg_profile = next((p for p in profiles if p.image_type == "JPG"), None)
+    
+    async with ImagenClient("your_api_key") as client:
+        # 3. Process RAW files if any
+        if raw_files and raw_profile:
+            print(f"Processing {len(raw_files)} RAW files...")
+            raw_project = await client.create_project("RAW_Batch")
+            await client.upload_images(raw_project, raw_files)
+            await client.start_editing(raw_project, raw_profile.profile_key)
+            raw_links = await client.get_download_links(raw_project)
+            await client.download_files(raw_links, "output/raw")
+            print("✅ RAW files processed")
+        
+        # 4. Process JPEG files if any
+        if jpeg_files and jpeg_profile:
+            print(f"Processing {len(jpeg_files)} JPEG files...")
+            jpeg_project = await client.create_project("JPEG_Batch")
+            await client.upload_images(jpeg_project, jpeg_files)
+            await client.start_editing(jpeg_project, jpeg_profile.profile_key)
+            jpeg_links = await client.get_download_links(jpeg_project)
+            await client.download_files(jpeg_links, "output/jpeg")
+            print("✅ JPEG files processed")
+
+asyncio.run(process_directory("./photos"))
+```
+
+## Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Validate Before Upload" icon="shield-check">
+    Always check file extensions before uploading to avoid errors.
+  </Card>
+  
+  <Card title="Separate File Types" icon="layer-group">
+    Create separate projects for RAW and JPEG files.
+  </Card>
+  
+  <Card title="Use SDK Constants" icon="code">
+    Use `RAW_EXTENSIONS`, `JPG_EXTENSIONS`, and `SUPPORTED_FILE_FORMATS` for validation.
+  </Card>
+  
+  <Card title="Match Profile Types" icon="arrows-left-right">
+    Ensure profile `image_type` matches your files (RAW or JPG).
+  </Card>
+</CardGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Profiles" href="/concepts/profiles" icon="user">
+    Learn about AI profiles and image type requirements
+  </Card>
+  
+  <Card title="Workflow" href="/concepts/workflow" icon="diagram-project">
+    Understand the complete editing workflow
+  </Card>
+  
+  <Card title="Upload Images" href="/api/imagen-client#upload_images" icon="cloud-arrow-up">
+    See the upload_images API reference
+  </Card>
+  
+  <Card title="Error Handling" href="/guides/error-handling" icon="triangle-exclamation">
+    Handle file validation errors properly
+  </Card>
+</CardGroup>

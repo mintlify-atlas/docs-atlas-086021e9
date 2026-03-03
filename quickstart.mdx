@@ -1,80 +1,357 @@
 ---
-title: "Quickstart"
-description: "Start building awesome documentation in minutes"
+title: Quick Start
+description: Edit your first photos with AI in under 5 minutes
 ---
 
-## Get started in three steps
+This guide will get you editing photos with Imagen AI as quickly as possible using the `quick_edit` function.
 
-Get your documentation site running locally and make your first customization.
+## Prerequisites
 
-### Step 1: Set up your local environment
+Before you begin, make sure you have:
 
-<AccordionGroup>
-  <Accordion icon="copy" title="Clone your docs locally">
-    During the onboarding process, you created a GitHub repository with your docs content if you didn't already have one. You can find a link to this repository in your [dashboard](https://dashboard.mintlify.com).
+- [Installed the SDK](/installation) with `pip install imagen-ai-sdk`
+- [Set your API key](/installation#get-your-api-key) as an environment variable
+- A profile key from your Imagen AI account
+
+## The Simplest Example
+
+The fastest way to edit photos is with the `quick_edit` function:
+
+```python
+import asyncio
+import os
+from imagen_sdk import quick_edit, EditOptions
+
+async def main():
+    # Get API key from environment
+    api_key = os.getenv("IMAGEN_API_KEY", "your_api_key_here")
     
-    To clone the repository locally so that you can make and preview changes to your docs, follow the [Cloning a repository](https://docs.github.com/en/repositories/creating-and-managing-repositories/cloning-a-repository) guide in the GitHub docs.
-  </Accordion>
-  <Accordion icon="rectangle-terminal" title="Start the preview server">
-    1. Install the Mintlify CLI: `npm i -g mint`
-    2. Navigate to your docs directory and run: `mint dev`
-    3. Open `http://localhost:3000` to see your docs live!
+    # Define editing options
+    edit_options = EditOptions(
+        crop=True,
+        straighten=True
+    )
     
-    <Tip>Your preview updates automatically as you edit files.</Tip>
-  </Accordion>
-</AccordionGroup>
-
-### Step 2: Deploy your changes
-
-<AccordionGroup>
-  <Accordion icon="github" title="Install our GitHub app">
-    Install the Mintlify GitHub app from your [dashboard](https://dashboard.mintlify.com/settings/organization/github-app).
+    # Edit photos
+    result = await quick_edit(
+        api_key=api_key,
+        profile_key=5700,
+        image_paths=["photo1.nef", "photo2.dng", "photo3.cr2"],
+        edit_options=edit_options,
+        download=True
+    )
     
-    Our GitHub app automatically deploys your changes to your docs site, so you don't need to manage deployments yourself.
-</Accordion>
-<Accordion icon="palette" title="Update your site name and colors">
-    For a first change, let's update the name and colors of your docs site.
+    print(f"✅ Done! {len(result.downloaded_files)} edited photos")
 
-    1. Open `docs.json` in your editor.
-    2. Change the `"name"` field to your project name.
-    3. Update the `"colors"` to match your brand.
-    4. Save and see your changes instantly at `http://localhost:3000`.
-
-    <Tip>Try changing the primary color to see an immediate difference!</Tip>
-  </Accordion>
-</AccordionGroup>
-
-### Step 3: Go live
-
-<Accordion icon="rocket" title="Publish your docs">
-  1. Commit and push your changes.
-  2. Your docs will update and be live in moments!
-</Accordion>
-
-## Next steps
-
-Now that you have your docs running, explore these key features:
-
-<CardGroup cols={2}>
-
-<Card title="Write Content" icon="pen-to-square" href="/essentials/markdown">
-  Learn MDX syntax and start writing your documentation.
-</Card>
-
-<Card title="Customize style" icon="palette" href="/essentials/settings">
-  Make your docs match your brand perfectly.
-</Card>
-
-<Card title="Add code examples" icon="square-code" href="/essentials/code">
-  Include syntax-highlighted code blocks.
-</Card>
-
-<Card title="API documentation" icon="code" href="/api-reference/introduction">
-  Auto-generate API docs from OpenAPI specs.
-</Card>
-
-</CardGroup>
+asyncio.run(main())
+```
 
 <Note>
-  **Need help?** See our [full documentation](https://mintlify.com/docs) or join our [community](https://mintlify.com/community).
+  Replace `5700` with your actual profile key from your Imagen AI account.
 </Note>
+
+## Understanding the Workflow
+
+The `quick_edit` function handles the entire workflow for you:
+
+<Steps>
+  <Step title="Create Project">
+    Automatically creates a new project in your Imagen AI account
+  </Step>
+  <Step title="Upload Images">
+    Uploads your photos asynchronously to Imagen's servers
+  </Step>
+  <Step title="Apply AI Editing">
+    Processes photos using your AI profile and editing options
+  </Step>
+  <Step title="Download Results">
+    Downloads the edited XMP files (and optionally exported JPEGs)
+  </Step>
+</Steps>
+
+## Complete Example
+
+Here's a more complete example from the SDK's source code:
+
+```python
+import asyncio
+import os
+from pathlib import Path
+from imagen_sdk import quick_edit
+
+async def main():
+    """Edit photos with one function call"""
+    
+    # Get API key
+    api_key = os.getenv("IMAGEN_API_KEY", "your_api_key_here")
+    
+    # Find photos to edit
+    photos = [f for f in Path(".").glob("./sample_photos/*.dng") if f.is_file()]
+    
+    if not photos:
+        print("No .dng files found. Add some photos to this directory.")
+        return
+    
+    print(f"Editing {len(photos)} photos...")
+    
+    try:
+        # Edit photos with AI
+        result = await quick_edit(
+            api_key=api_key,
+            profile_key=5700,
+            image_paths=[str(p) for p in photos],
+            download=True,
+            download_dir="edited",
+            export=True,
+        )
+        
+        print(f"✅ Done! {len(result.downloaded_files)} edited photos saved to ./edited/")
+    
+    except Exception as e:
+        print(f"❌ Error: {e}")
+        print("💡 Make sure your API key is set: export IMAGEN_API_KEY='your_key'")
+
+if __name__ == "__main__":
+    asyncio.run(main())
+```
+
+## Editing Options
+
+Customize how your photos are edited using `EditOptions`:
+
+```python
+from imagen_sdk import EditOptions
+
+# Basic editing
+basic_options = EditOptions(
+    crop=True,
+    straighten=True
+)
+
+# Portrait photography
+portrait_options = EditOptions(
+    portrait_crop=True,
+    smooth_skin=True,
+    subject_mask=True
+)
+
+# Landscape/real estate
+landscape_options = EditOptions(
+    crop=True,
+    perspective_correction=True,
+    sky_replacement=True,
+    window_pull=True,
+    crop_aspect_ratio="16:9"
+)
+```
+
+<Warning>
+  Some options are mutually exclusive:
+  - Choose only **one** crop type: `crop`, `portrait_crop`, or `headshot_crop`
+  - Choose only **one** straightening method: `straighten` or `perspective_correction`
+</Warning>
+
+## Photography Types
+
+Optimize AI processing by specifying your photography type:
+
+```python
+from imagen_sdk import quick_edit, EditOptions, PhotographyType
+
+edit_options = EditOptions(
+    portrait_crop=True,
+    smooth_skin=True,
+    subject_mask=True
+)
+
+result = await quick_edit(
+    api_key=api_key,
+    profile_key=5700,
+    image_paths=["ceremony_01.cr2", "portraits_01.nef"],
+    photography_type=PhotographyType.WEDDING,
+    edit_options=edit_options,
+    download=True
+)
+```
+
+### Available Types
+
+- `PhotographyType.WEDDING` - Wedding ceremony & reception
+- `PhotographyType.PORTRAITS` - Individual/family portraits
+- `PhotographyType.REAL_ESTATE` - Property photography
+- `PhotographyType.LANDSCAPE_NATURE` - Outdoor/nature photography
+- `PhotographyType.EVENTS` - Corporate events, parties
+- `PhotographyType.FAMILY_NEWBORN` - Family and newborn sessions
+- `PhotographyType.BOUDOIR` - Boudoir photography
+- `PhotographyType.SPORTS` - Sports photography
+
+## Exporting to JPEG
+
+You can also export final JPEG files directly:
+
+```python
+result = await quick_edit(
+    api_key="your_api_key",
+    profile_key=5700,
+    image_paths=["photo1.cr2", "photo2.nef"],
+    export=True,  # Export to JPEG
+    download=True,
+    download_dir="wedding_edited"
+)
+
+print(f"XMP files: {len(result.downloaded_files)}")
+print(f"Exported JPEGs: {len(result.exported_files)}")
+```
+
+## Working Example: Wedding Photography
+
+Here's a complete wedding photography workflow:
+
+```python
+import asyncio
+from imagen_sdk import quick_edit, PhotographyType, EditOptions
+
+async def process_wedding():
+    # Define editing options for wedding portraits
+    portrait_options = EditOptions(
+        crop=True,
+        straighten=True,
+        smooth_skin=True,
+        subject_mask=True
+    )
+    
+    result = await quick_edit(
+        api_key="your_api_key",
+        profile_key=5700,
+        image_paths=["ceremony_01.cr2", "portraits_01.nef", "reception_01.dng"],
+        project_name="Sarah & Mike Wedding",
+        photography_type=PhotographyType.WEDDING,
+        edit_options=portrait_options,
+        export=True,
+        download=True,
+        download_dir="wedding_edited"
+    )
+    
+    print(f"Wedding photos ready: {len(result.downloaded_files)} XMP files")
+    print(f"Exported JPEGs: {len(result.exported_files)} files")
+
+asyncio.run(process_wedding())
+```
+
+## Understanding the Results
+
+The `quick_edit` function returns a `QuickEditResult` object with:
+
+```python
+result = await quick_edit(...)
+
+# Project information
+print(f"Project UUID: {result.project_uuid}")
+
+# Upload summary
+print(f"Uploaded: {result.upload_summary.successful}/{result.upload_summary.total}")
+
+# Download links (URLs)
+print(f"XMP download links: {result.download_links}")
+print(f"Export download links: {result.export_links}")
+
+# Local file paths (if download=True)
+print(f"Downloaded XMP files: {result.downloaded_files}")
+print(f"Downloaded exported files: {result.exported_files}")
+```
+
+## Error Handling
+
+Handle errors gracefully with try/except:
+
+```python
+import asyncio
+from imagen_sdk import (
+    quick_edit,
+    EditOptions,
+    AuthenticationError,
+    UploadError,
+    ProjectError,
+    DownloadError
+)
+
+async def main():
+    try:
+        edit_options = EditOptions(crop=True, straighten=True)
+        result = await quick_edit(
+            api_key="your_api_key",
+            profile_key=5700,
+            image_paths=["photo1.cr2"],
+            edit_options=edit_options,
+            download=True
+        )
+        print(f"✅ Success! {len(result.downloaded_files)} photos edited")
+    
+    except AuthenticationError:
+        print("❌ Invalid API key - check your credentials")
+    except UploadError as e:
+        print(f"❌ Upload failed: {e}")
+    except ProjectError as e:
+        print(f"❌ Project operation failed: {e}")
+    except DownloadError as e:
+        print(f"❌ Download failed: {e}")
+    except Exception as e:
+        print(f"❌ Error: {e}")
+
+asyncio.run(main())
+```
+
+## Common Issues
+
+### File Type Mixing
+
+<Warning>
+  A single project cannot mix RAW and JPEG files. Create separate projects for different file types.
+</Warning>
+
+```python
+# ❌ WRONG - mixing file types
+result = await quick_edit(
+    api_key=api_key,
+    profile_key=5700,
+    image_paths=["photo1.cr2", "photo2.jpg"]  # Mixed types - will fail!
+)
+
+# ✅ CORRECT - separate projects
+raw_result = await quick_edit(
+    api_key=api_key,
+    profile_key=5700,
+    image_paths=["photo1.cr2", "photo2.nef"]  # All RAW
+)
+
+jpeg_result = await quick_edit(
+    api_key=api_key,
+    profile_key=5700,
+    image_paths=["photo1.jpg", "photo2.jpeg"]  # All JPEG
+)
+```
+
+### Profile Key
+
+<Note>
+  Your profile key must match your file type. RAW profiles work with RAW files, and JPEG profiles work with JPEG files.
+</Note>
+
+## Next Steps
+
+Now that you can edit photos with `quick_edit`, explore more advanced features:
+
+<CardGroup cols={2}>
+  <Card title="ImagenClient" icon="gears" href="/api/imagen-client">
+    Use the full client for step-by-step control and progress tracking
+  </Card>
+  <Card title="Edit Options" icon="sliders" href="/api/models/edit-options">
+    Explore all available editing options in detail
+  </Card>
+  <Card title="Guides" icon="code" href="/guides/basic-editing">
+    Browse more real-world usage examples
+  </Card>
+  <Card title="Error Handling" icon="triangle-exclamation" href="/guides/error-handling">
+    Learn about exception types and troubleshooting
+  </Card>
+</CardGroup>

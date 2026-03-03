@@ -1,0 +1,183 @@
+---
+title: "PhotographyType"
+description: "Photography type enumeration for AI-optimized editing"
+---
+
+## Overview
+
+The `PhotographyType` enum allows you to specify the type of photography to optimize AI processing for your images. While optional, providing the photography type helps the AI apply the most appropriate editing techniques for your specific use case.
+
+## Import
+
+```python
+from imagen_sdk import PhotographyType
+```
+
+## Enum Values
+
+<ParamField path="NO_TYPE" type="string">
+  No specific photography type. Use when the photography type doesn't fit into other categories or when you want generic processing.
+  
+  **Value:** `"NO_TYPE"`
+</ParamField>
+
+<ParamField path="OTHER" type="string">
+  General or other photography types not specifically categorized.
+  
+  **Value:** `"OTHER"`
+</ParamField>
+
+<ParamField path="PORTRAITS" type="string">
+  Individual or family portrait photography. Optimizes for subject focus, skin tones, and portrait-specific cropping.
+  
+  **Value:** `"PORTRAITS"`
+</ParamField>
+
+<ParamField path="WEDDING" type="string">
+  Wedding ceremony and reception photography. Optimizes for a mix of portraits, group shots, and event photography.
+  
+  **Value:** `"WEDDING"`
+</ParamField>
+
+<ParamField path="REAL_ESTATE" type="string">
+  Property and architectural photography. Optimizes for perspective correction, window exposure balance, and interior/exterior shots.
+  
+  **Value:** `"REAL_ESTATE"`
+</ParamField>
+
+<ParamField path="LANDSCAPE_NATURE" type="string">
+  Outdoor, landscape, and nature photography. Optimizes for sky enhancement, horizon straightening, and natural color grading.
+  
+  **Value:** `"LANDSCAPE_NATURE"`
+</ParamField>
+
+<ParamField path="EVENTS" type="string">
+  Corporate events, parties, and general event photography. Optimizes for dynamic lighting and group shots.
+  
+  **Value:** `"EVENTS"`
+</ParamField>
+
+<ParamField path="FAMILY_NEWBORN" type="string">
+  Family and newborn photography sessions. Optimizes for soft skin tones and intimate moments.
+  
+  **Value:** `"FAMILY_NEWBORN"`
+</ParamField>
+
+<ParamField path="BOUDOIR" type="string">
+  Boudoir photography. Optimizes for flattering lighting and skin enhancement.
+  
+  **Value:** `"BOUDOIR"`
+</ParamField>
+
+<ParamField path="SPORTS" type="string">
+  Sports and action photography. Optimizes for dynamic scenes and motion.
+  
+  **Value:** `"SPORTS"`
+</ParamField>
+
+## Usage Examples
+
+### Basic Usage
+
+```python
+from imagen_sdk import ImagenClient, PhotographyType
+
+async with ImagenClient("your_api_key") as client:
+    project_uuid = await client.create_project("Wedding Photos")
+    
+    # Start editing with photography type
+    await client.start_editing(
+        project_uuid,
+        profile_key=5700,
+        photography_type=PhotographyType.WEDDING  # Optimize for wedding photography
+    )
+```
+
+### With quick_edit Function
+
+```python
+from imagen_sdk import quick_edit, PhotographyType, EditOptions
+
+result = await quick_edit(
+    api_key="your_api_key",
+    profile_key=5700,
+    image_paths=["ceremony_01.cr2", "portraits_01.nef"],
+    photography_type=PhotographyType.WEDDING,
+    edit_options=EditOptions(crop=True, smooth_skin=True),
+    download=True
+)
+```
+
+### Portrait Photography
+
+```python
+from imagen_sdk import quick_edit, PhotographyType, EditOptions
+
+# Optimize for portrait photography
+edit_options = EditOptions(
+    portrait_crop=True,
+    smooth_skin=True,
+    subject_mask=True
+)
+
+result = await quick_edit(
+    api_key="your_api_key",
+    profile_key=5700,
+    image_paths=["portrait1.nef", "portrait2.cr2"],
+    photography_type=PhotographyType.PORTRAITS,
+    edit_options=edit_options,
+    download=True
+)
+```
+
+### Real Estate Photography
+
+```python
+from imagen_sdk import quick_edit, PhotographyType, EditOptions
+
+# Optimize for real estate photography
+edit_options = EditOptions(
+    crop=True,
+    perspective_correction=True,
+    window_pull=True,
+    sky_replacement=True
+)
+
+result = await quick_edit(
+    api_key="your_api_key",
+    profile_key=5700,
+    image_paths=["property_exterior.cr2", "living_room.nef"],
+    photography_type=PhotographyType.REAL_ESTATE,
+    edit_options=edit_options,
+    download=True
+)
+```
+
+### Landscape Photography
+
+```python
+from imagen_sdk import quick_edit, PhotographyType, EditOptions
+
+# Optimize for landscape photography
+edit_options = EditOptions(
+    crop=True,
+    straighten=True,
+    sky_replacement=True
+)
+
+result = await quick_edit(
+    api_key="your_api_key",
+    profile_key=5700,
+    image_paths=["sunset.arw", "mountain.raf"],
+    photography_type=PhotographyType.LANDSCAPE_NATURE,
+    edit_options=edit_options,
+    download=True
+)
+```
+
+## Notes
+
+- The `photography_type` parameter is **optional** in all editing methods
+- Providing a photography type helps the AI apply the most appropriate processing techniques
+- The photography type should match the content of your images for best results
+- You can use `NO_TYPE` or `OTHER` when your photography doesn't fit specific categories

@@ -1,0 +1,203 @@
+---
+title: EditOptions
+description: Configure image editing operations with validation rules
+---
+
+## Overview
+
+The `EditOptions` model defines which editing operations to apply to images. It includes validation to ensure mutually exclusive options are not enabled simultaneously.
+
+## Model Definition
+
+```python
+from imagen_sdk.models import EditOptions
+```
+
+## Fields
+
+<ParamField path="crop" type="bool | None" default="None">
+  Whether to apply cropping.
+  
+  **Note:** Mutually exclusive with `headshot_crop` and `portrait_crop`.
+</ParamField>
+
+<ParamField path="straighten" type="bool | None" default="None">
+  Whether to straighten the image.
+  
+  **Note:** Mutually exclusive with `perspective_correction`.
+</ParamField>
+
+<ParamField path="hdr_merge" type="bool | None" default="None">
+  Whether to apply HDR merge.
+</ParamField>
+
+<ParamField path="portrait_crop" type="bool | None" default="None">
+  Whether to apply portrait cropping.
+  
+  **Note:** Mutually exclusive with `crop` and `headshot_crop`.
+</ParamField>
+
+<ParamField path="smooth_skin" type="bool | None" default="None">
+  Whether to apply skin smoothing.
+</ParamField>
+
+<ParamField path="subject_mask" type="bool | None" default="None">
+  Whether to apply subject masking.
+</ParamField>
+
+<ParamField path="headshot_crop" type="bool | None" default="None">
+  Whether to apply headshot cropping.
+  
+  **Note:** Mutually exclusive with `crop` and `portrait_crop`.
+</ParamField>
+
+<ParamField path="perspective_correction" type="bool | None" default="None">
+  Whether to correct perspective.
+  
+  **Note:** Mutually exclusive with `straighten`.
+</ParamField>
+
+<ParamField path="sky_replacement" type="bool | None" default="None">
+  Whether to apply sky replacement.
+</ParamField>
+
+<ParamField path="sky_replacement_template_id" type="int | None" default="None">
+  Sky replacement template ID.
+  
+  Required when `sky_replacement` is enabled.
+</ParamField>
+
+<ParamField path="window_pull" type="bool | None" default="None">
+  Whether to apply window pull.
+</ParamField>
+
+<ParamField path="crop_aspect_ratio" type="str | None" default="None">
+  Custom aspect ratio for cropping.
+  
+  Example values: `"16:9"`, `"4:3"`, `"1:1"`
+</ParamField>
+
+## Validation Rules
+
+The `EditOptions` model enforces the following validation rules:
+
+### Cropping Tools Mutual Exclusivity
+
+Only one of the following can be set to `True`:
+- `crop`
+- `headshot_crop`
+- `portrait_crop`
+
+Attempting to enable multiple cropping options will raise a `ValueError`:
+
+```python
+ValueError: Only one of crop, headshot_crop, or portrait_crop can be set to True.
+```
+
+### Straightening Tools Mutual Exclusivity
+
+Only one of the following can be set to `True`:
+- `straighten`
+- `perspective_correction`
+
+Attempting to enable both will raise a `ValueError`:
+
+```python
+ValueError: Only one of straighten or perspective_correction can be set to True.
+```
+
+## Methods
+
+### to_api_dict()
+
+Converts the `EditOptions` instance to a dictionary suitable for API requests, excluding any fields set to `None`.
+
+```python
+def to_api_dict(self) -> dict[str, Any]
+```
+
+**Returns:** Dictionary with non-None field values
+
+## Usage Examples
+
+### Basic Editing Options
+
+```python
+from imagen_sdk.models import EditOptions
+
+# Simple cropping and straightening
+options = EditOptions(
+    crop=True,
+    straighten=True,
+    hdr_merge=True
+)
+```
+
+### Portrait Photography
+
+```python
+# Portrait-specific enhancements
+options = EditOptions(
+    portrait_crop=True,
+    smooth_skin=True,
+    subject_mask=True
+)
+```
+
+### Real Estate Photography
+
+```python
+# Sky replacement and window pull
+options = EditOptions(
+    perspective_correction=True,
+    sky_replacement=True,
+    sky_replacement_template_id=12345,
+    window_pull=True
+)
+```
+
+### Custom Aspect Ratio
+
+```python
+# Crop to specific aspect ratio
+options = EditOptions(
+    crop=True,
+    crop_aspect_ratio="16:9"
+)
+```
+
+### Converting to API Dictionary
+
+```python
+options = EditOptions(
+    crop=True,
+    straighten=True,
+    smooth_skin=None  # This will be excluded
+)
+
+api_dict = options.to_api_dict()
+print(api_dict)
+# Output: {'crop': True, 'straighten': True}
+```
+
+### Invalid Usage (Raises Errors)
+
+```python
+# This will raise ValueError - multiple crop options
+try:
+    options = EditOptions(
+        crop=True,
+        headshot_crop=True
+    )
+except ValueError as e:
+    print(e)  # Only one of crop, headshot_crop, or portrait_crop can be set to True.
+
+# This will raise ValueError - mutually exclusive straightening
+try:
+    options = EditOptions(
+        straighten=True,
+        perspective_correction=True
+    )
+except ValueError as e:
+    print(e)  # Only one of straighten or perspective_correction can be set to True.
+```

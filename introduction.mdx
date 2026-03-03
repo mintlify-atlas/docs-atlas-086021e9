@@ -1,0 +1,131 @@
+---
+title: Introduction
+description: Professional AI photo editing automation for photographers
+---
+
+Transform your post-production workflow with AI-powered batch editing. Upload hundreds of photos, apply professional edits automatically, and get download links in minutes.
+
+## Why Imagen AI SDK?
+
+Edit 500 wedding photos in the time it takes to write 5 lines of Python code. No more hours of repetitive manual work—just consistent, professional AI-powered editing.
+
+<CardGroup cols={2}>
+  <Card title="Quick Start" icon="rocket" href="/quickstart">
+    Get editing photos with AI in under 5 minutes
+  </Card>
+  <Card title="Installation" icon="download" href="/installation">
+    Install the SDK and set up your API key
+  </Card>
+  <Card title="API Reference" icon="book" href="/api/imagen-client">
+    Explore the complete API documentation
+  </Card>
+  <Card title="Guides" icon="code" href="/guides/basic-editing">
+    Browse real-world usage examples
+  </Card>
+</CardGroup>
+
+## How It Works
+
+The Imagen AI SDK provides a streamlined workflow for automated photo editing:
+
+<Steps>
+  <Step title="Train Your AI Profile">
+    Use the Imagen app to train your Personal AI Profile with 3,000+ edited photos. Perfect your unique editing style.
+  </Step>
+  <Step title="Get Your Profile Key">
+    Once your style is trained, get your profile key to use in the API for consistent automation.
+  </Step>
+  <Step title="Upload & Edit">
+    Use the SDK to upload photos and apply your editing style automatically at scale.
+  </Step>
+  <Step title="Download Results">
+    Get Adobe-compatible edit instructions (XMP files) that preserve your originals for non-destructive editing.
+  </Step>
+</Steps>
+
+## What You Get
+
+The SDK returns **Adobe-compatible edit instructions** (XMP files) that:
+
+- Preserve your original files
+- Allow for non-destructive editing
+- Open directly in Lightroom Classic, Lightroom, Photoshop, or Bridge
+- Can be further adjusted after AI processing
+- Export to any format you need
+
+<Note>
+  You can also export final JPEG files directly by setting `export=True` in your workflow.
+</Note>
+
+## Supported File Formats
+
+Imagen supports a wide range of photography file formats:
+
+### RAW Formats
+`.dng`, `.nef`, `.cr2`, `.cr3`, `.arw`, `.nrw`, `.crw`, `.srf`, `.sr2`, `.orf`, `.raw`, `.rw2`, `.raf`, `.ptx`, `.pef`, `.rwl`, `.srw`, `.3fr`, `.fff`
+
+### JPEG Formats
+`.jpg`, `.jpeg`
+
+<Warning>
+  A single project can contain **either** RAW files **or** JPEG files, but **not both**. Each file type must be in a separate project.
+</Warning>
+
+## Simple Example
+
+Here's how simple it is to edit photos with the SDK:
+
+```python
+import asyncio
+from imagen_sdk import quick_edit, EditOptions
+
+async def main():
+    edit_options = EditOptions(
+        crop=True,
+        straighten=True
+    )
+    
+    result = await quick_edit(
+        api_key="your_api_key",
+        profile_key=5700,
+        image_paths=["photo1.nef", "photo2.dng", "photo3.cr2"],
+        edit_options=edit_options,
+        download=True
+    )
+    print(f"✅ Done! {len(result.downloaded_files)} edited photos")
+
+asyncio.run(main())
+```
+
+## Use Cases
+
+<CardGroup cols={2}>
+  <Card title="Wedding Photography" icon="rings-wedding">
+    Process hundreds of ceremony and reception photos with consistent portrait editing
+  </Card>
+  <Card title="Portrait Sessions" icon="user">
+    Apply professional skin smoothing and subject masking to family portraits
+  </Card>
+  <Card title="Real Estate" icon="house">
+    Automate perspective correction and window balancing for property photos
+  </Card>
+  <Card title="Event Photography" icon="calendar">
+    Batch edit corporate events and parties with your signature style
+  </Card>
+</CardGroup>
+
+## Key Features
+
+- **Async/Await Support**: Built on modern Python async for efficient concurrent operations
+- **Type Safety**: Fully typed with Pydantic models for better IDE support and validation
+- **Progress Tracking**: Monitor uploads and downloads with callback functions
+- **Error Handling**: Comprehensive exception types for different error scenarios
+- **Batch Processing**: Upload and process hundreds of photos efficiently
+- **Flexible Editing**: Control cropping, straightening, skin smoothing, and more
+- **Non-Destructive**: XMP sidecar files preserve your original images
+
+## Ready to Get Started?
+
+<Card title="Quick Start Guide" icon="play" href="/quickstart">
+  Jump right in and edit your first photos with AI in minutes
+</Card>

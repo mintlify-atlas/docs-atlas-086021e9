@@ -1,0 +1,231 @@
+---
+title: "Basic Editing"
+description: "Get started with simple photo editing workflows using the Imagen AI SDK"
+---
+
+This guide walks you through the simplest way to edit photos with Imagen AI using the `quick_edit()` function.
+
+## Quick Start
+
+The fastest way to edit photos is with a single function call:
+
+```python
+import asyncio
+import os
+from pathlib import Path
+from imagen_sdk import quick_edit
+
+async def main():
+    # Get API key from environment
+    api_key = os.getenv("IMAGEN_API_KEY", "your_api_key_here")
+    
+    # Find photos to edit
+    photos = [f for f in Path(".").glob("./sample_photos/*.dng") if f.is_file()]
+    
+    if not photos:
+        print("No .dng files found. Add some photos to this directory.")
+        return
+    
+    print(f"Editing {len(photos)} photos...")
+    
+    try:
+        # Edit photos with AI
+        result = await quick_edit(
+            api_key=api_key,
+            profile_key=5700,
+            image_paths=[str(p) for p in photos],
+            download=True,
+            download_dir="edited",
+            export=True,
+        )
+        
+        print(f"✅ Done! {len(result.downloaded_files)} edited photos saved to ./edited/")
+    
+    except Exception as e:
+        print(f"❌ Error: {e}")
+        print("💡 Make sure your API key is set: export IMAGEN_API_KEY='your_key'")
+
+if __name__ == "__main__":
+    asyncio.run(main())
+```
+
+## Using Edit Options
+
+Customize your edits with `EditOptions`:
+
+```python
+from imagen_sdk import quick_edit, EditOptions
+
+# Define basic editing options
+edit_options = EditOptions(
+    crop=True,
+    straighten=True
+)
+
+result = await quick_edit(
+    api_key="your_api_key",
+    profile_key=5700,
+    image_paths=["photo1.nef", "photo2.dng", "photo3.cr2"],
+    edit_options=edit_options,
+    download=True
+)
+print(f"✅ Done! {len(result.downloaded_files)} edited photos")
+```
+
+## Common Edit Options
+
+Here are the most commonly used editing configurations:
+
+### Basic Editing
+```python
+basic_options = EditOptions(
+    crop=True,          # Basic cropping
+    straighten=True,    # Straighten images
+    smooth_skin=False,  # Minimal processing
+    hdr_merge=False     # No HDR
+)
+```
+
+### Event Photography
+```python
+event_options = EditOptions(
+    crop=True,         # General event cropping
+    straighten=True,   # Fix handheld shots
+    smooth_skin=True,  # Enhance people in photos
+    subject_mask=True  # Isolate subjects from backgrounds
+)
+```
+
+### Landscape Photography
+```python
+landscape_options = EditOptions(
+    crop=True,            # General landscape cropping
+    straighten=True,      # Level horizons
+    sky_replacement=True, # Enhance skies
+    hdr_merge=True        # HDR processing for dynamic range
+)
+```
+
+## Finding Photos Automatically
+
+Use the SDK's file format constants to discover photos:
+
+```python
+from pathlib import Path
+from imagen_sdk import RAW_EXTENSIONS, JPG_EXTENSIONS
+
+# Find RAW files
+raw_photos = []
+for ext in RAW_EXTENSIONS:
+    raw_photos.extend([str(p) for p in Path('.').glob(f'*{ext}')])
+
+# Find JPEG files (separate project needed)
+jpeg_photos = []
+for ext in JPG_EXTENSIONS:
+    jpeg_photos.extend([str(p) for p in Path('.').glob(f'*{ext}')])
+
+# Process RAW files first (if any)
+if raw_photos:
+    print(f"Processing {len(raw_photos)} RAW files...")
+    result = await quick_edit(
+        api_key="your_api_key",
+        profile_key=5700,
+        image_paths=raw_photos,
+        edit_options=EditOptions(crop=True, straighten=True),
+        download=True
+    )
+elif jpeg_photos:
+    print(f"Processing {len(jpeg_photos)} JPEG files...")
+    result = await quick_edit(
+        api_key="your_api_key",
+        profile_key=5700,
+        image_paths=jpeg_photos,
+        edit_options=EditOptions(crop=True, straighten=True),
+        download=True
+    )
+```
+
+<Warning>
+  A single project can contain **either** RAW files **or** JPEG files, but **not both**. Each file type must be in a separate project.
+</Warning>
+
+## Exporting to JPEG
+
+The SDK returns XMP edit instructions by default. To also export final JPEG files:
+
+```python
+result = await quick_edit(
+    api_key="your_api_key",
+    profile_key=5700,
+    image_paths=["photo1.cr2", "photo2.nef"],
+    export=True,  # Export to JPEG
+    download=True
+)
+
+# Access both XMP and JPEG files
+print(f"XMP files: {len(result.downloaded_files)}")
+print(f"JPEG files: {len(result.exported_files)}")
+```
+
+## Using Custom Logger
+
+Enable detailed logging for debugging:
+
+```python
+import logging
+from imagen_sdk import quick_edit
+
+# Set up a custom logger
+logger = logging.getLogger("imagen_sdk.examples")
+handler = logging.StreamHandler()
+formatter = logging.Formatter("[%(levelname)s] %(name)s: %(message)s")
+handler.setFormatter(formatter)
+logger.addHandler(handler)
+logger.setLevel(logging.INFO)
+
+# Use logger with quick_edit
+result = await quick_edit(
+    api_key=api_key,
+    profile_key=5700,
+    image_paths=[str(p) for p in photos],
+    download=True,
+    download_dir="edited",
+    logger=logger,
+    logger_level=logging.INFO,
+)
+```
+
+## Supported File Formats
+
+The SDK supports a wide range of camera RAW formats and JPEG files:
+
+**RAW formats**: `.dng`, `.nef`, `.cr2`, `.cr3`, `.arw`, `.nrw`, `.crw`, `.srf`, `.sr2`, `.orf`, `.raw`, `.rw2`, `.raf`, `.ptx`, `.pef`, `.rwl`, `.srw`, `.3fr`, `.fff`
+
+**JPEG formats**: `.jpg`, `.jpeg`
+
+```python
+from imagen_sdk import SUPPORTED_FILE_FORMATS, RAW_EXTENSIONS, JPG_EXTENSIONS
+
+# Check if file is supported
+file_ext = Path("photo.cr2").suffix.lower()
+is_supported = file_ext in SUPPORTED_FILE_FORMATS
+is_raw = file_ext in RAW_EXTENSIONS
+is_jpeg = file_ext in JPG_EXTENSIONS
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Advanced Workflow" icon="gears" href="/guides/advanced-workflow">
+    Learn step-by-step control with ImagenClient
+  </Card>
+  <Card title="Wedding Photography" icon="ring" href="/guides/wedding-photography">
+    Specialized workflow for wedding photos
+  </Card>
+  <Card title="Batch Processing" icon="layer-group" href="/guides/batch-processing">
+    Process large collections efficiently
+  </Card>
+  <Card title="Error Handling" icon="shield-check" href="/guides/error-handling">
+    Handle errors gracefully
+  </Card>
+</CardGroup>

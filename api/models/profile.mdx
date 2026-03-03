@@ -1,0 +1,131 @@
+---
+title: Profile
+description: Representation of an Imagen AI profile configuration
+---
+
+## Overview
+
+The `Profile` model represents an Imagen AI profile, which defines the type of images to be processed and the associated processing configuration.
+
+## Model Definition
+
+```python
+from imagen_sdk.models import Profile
+```
+
+## Fields
+
+<ParamField path="image_type" type="str" required>
+  Type of images this profile handles.
+  
+  Examples: `"real_estate"`, `"portrait"`, `"product"`
+</ParamField>
+
+<ParamField path="profile_key" type="int" required>
+  Unique identifier for the profile.
+  
+  This is the primary identifier used when selecting a profile for image processing.
+</ParamField>
+
+<ParamField path="profile_name" type="str" required>
+  Human-readable name of the profile.
+  
+  This is typically displayed in user interfaces when selecting profiles.
+</ParamField>
+
+<ParamField path="profile_type" type="str" required>
+  Type/tier of the profile.
+  
+  Indicates the service level or feature set of the profile.
+  
+  Examples: `"standard"`, `"premium"`, `"basic"`
+</ParamField>
+
+## Usage Examples
+
+### Creating a Profile Instance
+
+```python
+from imagen_sdk.models import Profile
+
+profile = Profile(
+    image_type="real_estate",
+    profile_key=12345,
+    profile_name="Premium Real Estate",
+    profile_type="premium"
+)
+
+print(profile.profile_name)  # Premium Real Estate
+print(profile.profile_key)   # 12345
+```
+
+### Accessing Profile Information
+
+```python
+# Check profile details
+if profile.image_type == "real_estate":
+    print(f"Using {profile.profile_name} for real estate images")
+    print(f"Profile ID: {profile.profile_key}")
+    print(f"Tier: {profile.profile_type}")
+```
+
+### Converting to Dictionary
+
+```python
+profile = Profile(
+    image_type="portrait",
+    profile_key=67890,
+    profile_name="Portrait Pro",
+    profile_type="standard"
+)
+
+profile_dict = profile.model_dump()
+print(profile_dict)
+# Output:
+# {
+#     'image_type': 'portrait',
+#     'profile_key': 67890,
+#     'profile_name': 'Portrait Pro',
+#     'profile_type': 'standard'
+# }
+```
+
+### Using with Client Methods
+
+```python
+from imagen_sdk import ImagenClient
+
+client = ImagenClient(api_key="your_api_key")
+
+# Get available profiles
+profiles = client.get_profiles()
+
+# Select a specific profile
+for profile in profiles:
+    if profile.image_type == "real_estate":
+        selected_profile = profile
+        print(f"Selected: {profile.profile_name} (ID: {profile.profile_key})")
+        break
+```
+
+### Filtering Profiles by Type
+
+```python
+# Get all profiles
+all_profiles = client.get_profiles()
+
+# Filter by image type
+real_estate_profiles = [
+    p for p in all_profiles 
+    if p.image_type == "real_estate"
+]
+
+# Filter by profile type (tier)
+premium_profiles = [
+    p for p in all_profiles 
+    if p.profile_type == "premium"
+]
+
+for profile in premium_profiles:
+    print(f"{profile.profile_name} - {profile.image_type}")
+```

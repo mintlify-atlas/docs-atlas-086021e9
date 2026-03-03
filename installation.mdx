@@ -1,0 +1,170 @@
+---
+title: Installation
+description: Get the Imagen AI SDK installed and configured
+---
+
+## System Requirements
+
+Before installing the SDK, ensure you have:
+
+- **Python 3.7 or higher**
+- **Internet connection** for API access
+- **Imagen AI API key** (see below)
+
+## Install the SDK
+
+<Steps>
+  <Step title="Install via pip">
+    Install the SDK using pip:
+
+    ```bash
+    pip install imagen-ai-sdk
+    ```
+
+    To upgrade to the latest version:
+
+    ```bash
+    pip install --upgrade imagen-ai-sdk
+    ```
+  </Step>
+
+  <Step title="Verify installation">
+    Check that the SDK is installed correctly:
+
+    ```python
+    import imagen_sdk
+    print(f"SDK version: {imagen_sdk.__version__}")
+    ```
+  </Step>
+</Steps>
+
+## Get Your API Key
+
+To use the Imagen AI SDK, you'll need an API key:
+
+<Steps>
+  <Step title="Sign up for Imagen AI">
+    Create an account at [imagen-ai.com](https://imagen-ai.com)
+  </Step>
+
+  <Step title="Request API access">
+    Contact support via [support.imagen-ai.com](https://support.imagen-ai.com/hc) with your account email to request your API key.
+  </Step>
+
+  <Step title="Set environment variable">
+    Once you receive your API key, set it as an environment variable:
+
+    <CodeGroup>
+      ```bash Mac/Linux
+      export IMAGEN_API_KEY="your_api_key_here"
+      ```
+
+      ```bash Windows (Command Prompt)
+      set IMAGEN_API_KEY=your_api_key_here
+      ```
+
+      ```powershell Windows (PowerShell)
+      $env:IMAGEN_API_KEY="your_api_key_here"
+      ```
+    </CodeGroup>
+
+    <Note>
+      To make the environment variable permanent, add it to your shell profile (`.bashrc`, `.zshrc`, etc.) or Windows environment variables.
+    </Note>
+  </Step>
+</Steps>
+
+## Test Your Setup
+
+Verify that everything is working correctly by testing your API connection:
+
+```python
+import asyncio
+from imagen_sdk import get_profiles
+
+async def test_connection():
+    try:
+        profiles = await get_profiles("your_api_key")
+        print(f"✅ Connected! Found {len(profiles)} editing profiles")
+        for profile in profiles[:3]:
+            print(f"  • {profile.profile_name} (key: {profile.profile_key})")
+    except Exception as e:
+        print(f"❌ Connection failed: {e}")
+
+asyncio.run(test_connection())
+```
+
+<Note>
+  Replace `"your_api_key"` with your actual API key, or use `os.getenv("IMAGEN_API_KEY")` to read from the environment variable.
+</Note>
+
+## Using Environment Variables in Code
+
+The recommended approach is to read the API key from environment variables:
+
+```python
+import os
+import asyncio
+from imagen_sdk import quick_edit, EditOptions
+
+async def main():
+    # Get API key from environment
+    api_key = os.getenv("IMAGEN_API_KEY")
+    
+    if not api_key:
+        print("❌ API Key not found. Please set the IMAGEN_API_KEY environment variable.")
+        return
+    
+    # Use the API key
+    edit_options = EditOptions(crop=True, straighten=True)
+    result = await quick_edit(
+        api_key=api_key,
+        profile_key=5700,
+        image_paths=["photo1.cr2"],
+        edit_options=edit_options,
+        download=True
+    )
+    print(f"✅ Done! {len(result.downloaded_files)} edited photos")
+
+asyncio.run(main())
+```
+
+## Troubleshooting
+
+### Import Error
+
+```
+❌ ImportError: No module named 'imagen_sdk'
+```
+
+**Solutions:**
+- Install the package: `pip install imagen-ai-sdk`
+- Check you're using the correct Python environment
+- Try: `pip install --upgrade imagen-ai-sdk`
+
+### Authentication Error
+
+```
+❌ Error: Invalid API key or unauthorized
+```
+
+**Solutions:**
+1. Double-check that your API key is correct
+2. Make sure you've contacted support to activate your key
+3. Verify environment variable is set: `echo $IMAGEN_API_KEY`
+
+### Version Check
+
+To check your installed SDK version:
+
+```bash
+python -c "import imagen_sdk; print(imagen_sdk.__version__)"
+```
+
+## Next Steps
+
+Now that you have the SDK installed and configured, you're ready to start editing photos!
+
+<Card title="Quick Start Guide" icon="rocket" href="/quickstart">
+  Learn how to edit your first photos with the `quick_edit` function
+</Card>

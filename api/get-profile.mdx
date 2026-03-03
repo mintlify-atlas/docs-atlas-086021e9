@@ -1,0 +1,197 @@
+---
+title: 'get_profile'
+description: 'Fetch a specific editing profile by its key'
+---
+
+## Overview
+
+The `get_profile` function retrieves a single profile by its profile key. This is useful for validating profile keys and getting profile details before starting an editing workflow.
+
+## Function Signature
+
+```python
+await get_profile(
+    api_key: str,
+    profile_key: int,
+    base_url: str = "https://api-beta.imagen-ai.com/v1"
+) -> Profile
+```
+
+## Parameters
+
+<ParamField path="api_key" type="str" required>
+  Your Imagen AI API key
+</ParamField>
+
+<ParamField path="profile_key" type="int" required>
+  The specific profile key to retrieve
+</ParamField>
+
+<ParamField path="base_url" type="str" default="https://api-beta.imagen-ai.com/v1">
+  API base URL
+</ParamField>
+
+## Return Value
+
+<ResponseField name="profile" type="Profile">
+  The profile object with the following fields:
+  
+  <ResponseField name="profile_key" type="int">
+    Unique identifier for the profile
+  </ResponseField>
+  
+  <ResponseField name="profile_name" type="str">
+    Human-readable name of the profile
+  </ResponseField>
+  
+  <ResponseField name="profile_type" type="str">
+    Type/tier of the profile
+  </ResponseField>
+  
+  <ResponseField name="image_type" type="str">
+    Type of images this profile handles: "RAW" or "JPG"
+  </ResponseField>
+</ResponseField>
+
+## Exceptions
+
+- `UploadError` - If profile with the given key is not found
+- `ImagenError` - If API request fails
+- `AuthenticationError` - If API key is invalid
+
+## Examples
+
+### Basic Usage
+
+```python
+from imagen_sdk import get_profile
+
+# Get specific profile details
+profile = await get_profile("your_api_key", 5700)
+print(f"Profile: {profile.profile_name}")
+print(f"Works with: {profile.image_type} files")
+```
+
+### Validate Profile Before Editing
+
+```python
+from imagen_sdk import get_profile, quick_edit
+
+try:
+    # Validate profile exists
+    profile = await get_profile("your_api_key", 5700)
+    print(f"Using profile: {profile.profile_name}")
+    
+    # Proceed with editing
+    result = await quick_edit(
+        api_key="your_api_key",
+        profile_key=profile.profile_key,
+        image_paths=["photo1.cr2", "photo2.cr2"]
+    )
+except UploadError:
+    print("Profile not found. Please check your profile key.")
+```
+
+### Check Image Type Compatibility
+
+```python
+from imagen_sdk import get_profile
+
+# Get profile info
+profile = await get_profile("your_api_key", 5700)
+
+# Check if it matches your files
+if profile.image_type == "RAW":
+    print("This profile works with RAW files (.cr2, .nef, etc.)")
+    image_files = ["photo1.cr2", "photo2.nef"]
+else:
+    print("This profile works with JPEG files (.jpg)")
+    image_files = ["photo1.jpg", "photo2.jpg"]
+```
+
+### Use with File Validation
+
+```python
+from imagen_sdk import get_profile, check_files_match_profile_type
+import logging
+
+# Setup logger
+logger = logging.getLogger("my_app")
+
+# Get profile
+profile = await get_profile("your_api_key", 5700)
+files = ["photo1.cr2", "photo2.nef", "photo3.dng"]
+
+# Validate files match profile type
+try:
+    check_files_match_profile_type(files, profile, logger)
+    print("All files are compatible with this profile")
+except Exception as e:
+    print(f"File validation failed: {e}")
+```
+
+### Display Profile Information
+
+```python
+from imagen_sdk import get_profile
+
+profile = await get_profile("your_api_key", 5700)
+
+print("Profile Information:")
+print(f"  Name: {profile.profile_name}")
+print(f"  Key: {profile.profile_key}")
+print(f"  Type: {profile.profile_type}")
+print(f"  Image Type: {profile.image_type}")
+```
+
+### Error Handling
+
+```python
+from imagen_sdk import get_profile
+from imagen_sdk.exceptions import UploadError, AuthenticationError, ImagenError
+
+try:
+    profile = await get_profile("your_api_key", 9999)
+    print(f"Found: {profile.profile_name}")
+except UploadError:
+    print("Error: Profile key 9999 not found in your account")
+except AuthenticationError:
+    print("Error: Invalid API key")
+except ImagenError as e:
+    print(f"API Error: {e}")
+```
+
+### Use with ImagenClient
+
+```python
+from imagen_sdk import get_profile, ImagenClient
+
+# Validate profile first
+profile = await get_profile("your_api_key", 5700)
+print(f"Using profile: {profile.profile_name}")
+
+# Use with client
+async with ImagenClient("your_api_key") as client:
+    project_uuid = await client.create_project()
+    await client.upload_images(project_uuid, ["photo1.jpg"])
+    await client.start_editing(project_uuid, profile.profile_key)
+```
+
+## Notes
+
+<Note>
+- This function fetches all profiles and returns the one matching the key
+- If the profile key doesn't exist, an `UploadError` is raised
+- Profile keys are integers obtained from the Imagen AI app or `get_profiles()`
+- The profile's `image_type` field tells you whether to use RAW or JPEG files
+</Note>
+
+<Tip>
+Use `get_profile()` to validate profile keys at the start of your workflow, especially when accepting profile keys as user input. This prevents errors later in the editing process.
+</Tip>
+
+## See Also
+
+- [get_profiles](/api/get-profiles) - Get all available profiles
+- [check_files_match_profile_type](/api/check-files) - Validate files against profile
+- [quick_edit](/api/quick-edit) - Use profile for editing

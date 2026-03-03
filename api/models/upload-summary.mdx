@@ -1,0 +1,214 @@
+---
+title: UploadSummary & UploadResult
+description: Track upload operations and individual file results
+---
+
+## Overview
+
+The `UploadSummary` and `UploadResult` models provide detailed information about file upload operations, including success/failure status and error details.
+
+## UploadResult
+
+Represents the upload result for a single file.
+
+### Model Definition
+
+```python
+from imagen_sdk.models import UploadResult
+```
+
+### Fields
+
+<ParamField path="file" type="str" required>
+  Path of the uploaded file.
+  
+  This is typically the local file path that was uploaded.
+</ParamField>
+
+<ParamField path="success" type="bool" required>
+  Whether the upload was successful.
+  
+  `True` if the file uploaded successfully, `False` otherwise.
+</ParamField>
+
+<ParamField path="error" type="str | None" default="None">
+  Error message if upload failed.
+  
+  Contains the error description when `success` is `False`. `None` when upload succeeded.
+</ParamField>
+
+### Usage Examples
+
+#### Successful Upload
+
+```python
+from imagen_sdk.models import UploadResult
+
+result = UploadResult(
+    file="/path/to/image1.jpg",
+    success=True,
+    error=None
+)
+
+print(f"File: {result.file}")
+print(f"Success: {result.success}")  # True
+```
+
+#### Failed Upload
+
+```python
+result = UploadResult(
+    file="/path/to/image2.jpg",
+    success=False,
+    error="File size exceeds maximum allowed (10MB)"
+)
+
+if not result.success:
+    print(f"Upload failed for {result.file}")
+    print(f"Reason: {result.error}")
+```
+
+## UploadSummary
+
+Provides an aggregate summary of multiple file uploads.
+
+### Model Definition
+
+```python
+from imagen_sdk.models import UploadSummary
+```
+
+### Fields
+
+<ParamField path="total" type="int" required>
+  Total number of files attempted.
+  
+  This is the sum of successful and failed uploads.
+</ParamField>
+
+<ParamField path="successful" type="int" required>
+  Number of successfully uploaded files.
+</ParamField>
+
+<ParamField path="failed" type="int" required>
+  Number of failed uploads.
+</ParamField>
+
+<ParamField path="results" type="list[UploadResult]" required>
+  Detailed results for each file.
+  
+  Contains an `UploadResult` object for every file that was attempted.
+</ParamField>
+
+### Usage Examples
+
+#### Creating an Upload Summary
+
+```python
+from imagen_sdk.models import UploadSummary, UploadResult
+
+summary = UploadSummary(
+    total=3,
+    successful=2,
+    failed=1,
+    results=[
+        UploadResult(
+            file="/path/to/image1.jpg",
+            success=True,
+            error=None
+        ),
+        UploadResult(
+            file="/path/to/image2.jpg",
+            success=True,
+            error=None
+        ),
+        UploadResult(
+            file="/path/to/image3.jpg",
+            success=False,
+            error="Invalid file format"
+        )
+    ]
+)
+
+print(f"Uploaded {summary.successful}/{summary.total} files successfully")
+# Output: Uploaded 2/3 files successfully
+```
+
+#### Processing Upload Results
+
+```python
+# Check overall success
+if summary.failed == 0:
+    print("All files uploaded successfully!")
+else:
+    print(f"{summary.failed} file(s) failed to upload")
+
+# Process each result
+for result in summary.results:
+    if result.success:
+        print(f"✓ {result.file}")
+    else:
+        print(f"✗ {result.file} - {result.error}")
+```
+
+#### Filtering Failed Uploads
+
+```python
+# Get all failed uploads
+failed_uploads = [
+    result for result in summary.results 
+    if not result.success
+]
+
+if failed_uploads:
+    print(f"Failed to upload {len(failed_uploads)} files:")
+    for result in failed_uploads:
+        print(f"  - {result.file}: {result.error}")
+```
+
+#### Retry Failed Uploads
+
+```python
+from imagen_sdk import ImagenClient
+
+client = ImagenClient(api_key="your_api_key")
+project_uuid = "project-123"
+
+# Get files that failed
+failed_files = [
+    result.file for result in summary.results 
+    if not result.success
+]
+
+if failed_files:
+    print(f"Retrying {len(failed_files)} failed uploads...")
+    retry_summary = client.upload_images(project_uuid, failed_files)
+    print(f"Retry result: {retry_summary.successful}/{retry_summary.total} successful")
+```
+
+#### Calculating Success Rate
+
+```python
+success_rate = (summary.successful / summary.total) * 100 if summary.total > 0 else 0
+print(f"Upload success rate: {success_rate:.1f}%")
+
+if success_rate < 100:
+    print("\nFailed uploads:")
+    for result in summary.results:
+        if not result.success:
+            print(f"  {result.file}: {result.error}")
+```
+
+#### Extracting Successful File Paths
+
+```python
+# Get list of successfully uploaded files
+successful_files = [
+    result.file for result in summary.results 
+    if result.success
+]
+
+print(f"Successfully uploaded {len(successful_files)} files:")
+for file_path in successful_files:
+    print(f"  - {file_path}")
+```

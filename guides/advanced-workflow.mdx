@@ -1,0 +1,435 @@
+---
+title: "Advanced Workflow"
+description: "Step-by-step control over the photo editing process using ImagenClient"
+---
+
+This guide demonstrates how to use `ImagenClient` for fine-grained control over each step of the editing workflow, including progress tracking and custom configuration.
+
+## Complete Workflow Example
+
+Here's the full workflow with progress tracking and error handling:
+
+```python
+import asyncio
+from imagen_sdk import ImagenClient, PhotographyType, EditOptions
+
+async def advanced_workflow():
+    # Define progress callbacks
+    def upload_progress(current, total, filename):
+        percent = (current / total) * 100
+        print(f"Upload: {percent:.1f}% - {filename}")
+    
+    def download_progress(current, total, message):
+        percent = (current / total) * 100
+        print(f"Download: {percent:.1f}% - {message}")
+
+    async with ImagenClient("your_api_key") as client:
+        # 1. Create project
+        project_uuid = await client.create_project("My Project")
+        print(f"Created project: {project_uuid}")
+        
+        # 2. Upload photos with progress tracking and MD5 verification
+        upload_result = await client.upload_images(
+            project_uuid,
+            ["photo1.cr2", "photo2.nef"],
+            max_concurrent=3,  # Adjust for your connection
+            calculate_md5=True,  # Enable integrity checking
+            progress_callback=upload_progress
+        )
+        print(f"Uploaded: {upload_result.successful}/{upload_result.total}")
+        
+        # 3. Start editing with AI tools
+        edit_options = EditOptions(
+            straighten=True,
+            portrait_crop=True
+        )
+        await client.start_editing(
+            project_uuid,
+            profile_key=5700,
+            photography_type=PhotographyType.PORTRAITS,
+            edit_options=edit_options
+        )
+        print("Editing complete!")
+        
+        # 4. Get download links for XMP files
+        download_links = await client.get_download_links(project_uuid)
+        
+        # 5. Export to JPEG (optional)
+        await client.export_project(project_uuid)
+        export_links = await client.get_export_links(project_uuid)
+        
+        # 6. Download files with progress tracking
+        downloaded_files = await client.download_files(
+            download_links, 
+            output_dir="my_edited_photos",
+            progress_callback=download_progress
+        )
+        print(f"Downloaded {len(downloaded_files)} XMP files")
+
+asyncio.run(advanced_workflow())
+```
+
+## Step-by-Step Breakdown
+
+<Steps>
+  <Step title="Initialize Client">
+    Create an `ImagenClient` instance with your API key. Use the async context manager for automatic cleanup:
+
+    ```python
+    async with ImagenClient("your_api_key") as client:
+        # Your operations here
+        pass  # Session automatically closed
+    ```
+
+    <Info>
+      The async context manager ensures proper cleanup of network resources even if errors occur.
+    </Info>
+  </Step>
+
+  <Step title="Create Project">
+    Create a new project to organize your photos:
+
+    ```python
+    # With custom name
+    project_uuid = await client.create_project("Sarah_Mike_Wedding_2024")
+    
+    # Or auto-generate UUID
+    project_uuid = await client.create_project()
+    ```
+
+    <Warning>
+      Project names must be unique. If a name already exists, you'll get an error. Use timestamps or auto-generated UUIDs to ensure uniqueness.
+    </Warning>
+  </Step>
+
+  <Step title="Upload Images">
+    Upload your photos with optional progress tracking and MD5 verification:
+
+    ```python
+    def upload_progress(current, total, filename):
+        percent = (current / total) * 100
+        print(f"Upload: {percent:.1f}% - {filename}")
+
+    upload_result = await client.upload_images(
+        project_uuid,
+        ["photo1.cr2", "photo2.nef", "photo3.dng"],
+        max_concurrent=3,  # Adjust based on connection speed
+        calculate_md5=True,  # Enable integrity checking
+        progress_callback=upload_progress
+    )
+    
+    # Check results
+    print(f"Uploaded: {upload_result.successful}/{upload_result.total}")
+    if upload_result.failed > 0:
+        for result in upload_result.results:
+            if not result.success:
+                print(f"Failed: {result.file} - {result.error}")
+    ```
+  </Step>
+
+  <Step title="Start Editing">
+    Configure and start the AI editing process:
+
+    ```python
+    from imagen_sdk import EditOptions, PhotographyType
+    
+    # Configure editing options
+    edit_options = EditOptions(
+        portrait_crop=True,
+        smooth_skin=True,
+        subject_mask=True,
+        straighten=True
+    )
+    
+    # Start editing
+    await client.start_editing(
+        project_uuid,
+        profile_key=5700,
+        photography_type=PhotographyType.WEDDING,
+        edit_options=edit_options
+    )
+    ```
+  </Step>
+
+  <Step title="Get Download Links">
+    Retrieve download URLs for the edited XMP files:
+
+    ```python
+    download_links = await client.get_download_links(project_uuid)
+    print(f"Found {len(download_links)} download links")
+    ```
+  </Step>
+
+  <Step title="Export (Optional)">
+    Export final JPEG files if needed:
+
+    ```python
+    # Start export process
+    await client.export_project(project_uuid)
+    
+    # Get export download links
+    export_links = await client.get_export_links(project_uuid)
+    print(f"Found {len(export_links)} export links")
+    ```
+  </Step>
+
+  <Step title="Download Files">
+    Download the edited files to your local system:
+
+    ```python
+    def download_progress(current, total, message):
+        percent = (current / total) * 100
+        print(f"Download: {percent:.1f}% - {message}")
+    
+    # Download XMP files
+    xmp_files = await client.download_files(
+        download_links,
+        output_dir="edited_xmp",
+        max_concurrent=5,
+        progress_callback=download_progress
+    )
+    
+    # Download exported JPEGs
+    jpeg_files = await client.download_files(
+        export_links,
+        output_dir="edited_jpeg",
+        max_concurrent=5,
+        progress_callback=download_progress
+    )
+    ```
+  </Step>
+</Steps>
+
+## Working with Profiles
+
+Before editing, you can list and inspect available editing profiles:
+
+```python
+async with ImagenClient("your_api_key") as client:
+    # Get all profiles
+    profiles = await client.get_profiles()
+    
+    for profile in profiles:
+        print(f"Profile: {profile.profile_name}")
+        print(f"  Key: {profile.profile_key}")
+        print(f"  Type: {profile.image_type}")
+    
+    # Find a specific profile type
+    raw_profile = next((p for p in profiles if p.image_type == "RAW"), None)
+    if raw_profile:
+        print(f"Using RAW profile: {raw_profile.profile_name}")
+```
+
+You can also use the standalone functions:
+
+```python
+from imagen_sdk import get_profiles, get_profile
+
+# Get all profiles
+profiles = await get_profiles("your_api_key")
+
+# Get specific profile
+profile = await get_profile("your_api_key", profile_key=5700)
+print(f"Profile '{profile.profile_name}' works with {profile.image_type} files")
+```
+
+## File Validation
+
+Validate files before upload to prevent errors:
+
+```python
+from imagen_sdk import get_profile, check_files_match_profile_type
+import logging
+
+async def validate_and_upload():
+    logger = logging.getLogger("validation")
+    
+    # Get profile details
+    profile = await get_profile("api_key", profile_key=5700)
+    print(f"Profile '{profile.profile_name}' works with {profile.image_type} files")
+    
+    # Check file compatibility
+    files = ["photo1.cr2", "photo2.nef", "photo3.dng"]  # All RAW
+    try:
+        check_files_match_profile_type(files, profile, logger)
+        print("✅ All files are compatible with this profile")
+    except UploadError as e:
+        print(f"❌ File validation failed: {e}")
+        return
+    
+    # Safe to proceed with upload
+    async with ImagenClient("api_key") as client:
+        project_uuid = await client.create_project()
+        await client.upload_images(project_uuid, files)
+```
+
+## Performance Optimization
+
+### Concurrent Operations
+
+Adjust concurrency based on your network connection:
+
+```python
+# For slower connections
+upload_result = await client.upload_images(
+    project_uuid,
+    image_paths,
+    max_concurrent=2  # Lower concurrency
+)
+
+# For faster connections
+upload_result = await client.upload_images(
+    project_uuid,
+    image_paths,
+    max_concurrent=5  # Higher concurrency
+)
+```
+
+### MD5 Verification
+
+Enable MD5 checksums for important uploads (trades speed for integrity):
+
+```python
+upload_result = await client.upload_images(
+    project_uuid,
+    image_paths,
+    calculate_md5=True  # Ensures upload integrity
+)
+```
+
+### Session Management
+
+For long-running applications, use proper session management:
+
+```python
+# Recommended: Async context manager (automatic cleanup)
+async with ImagenClient("api_key") as client:
+    # Your operations here
+    pass  # Session automatically closed
+
+# Manual management (not recommended)
+client = ImagenClient("api_key")
+try:
+    # Your operations here
+    pass
+finally:
+    await client.close()  # Manual cleanup required
+```
+
+## Custom Logging
+
+Configure custom logging for all SDK operations:
+
+```python
+import logging
+from imagen_sdk import ImagenClient
+
+# Set up custom logging
+custom_logger = logging.getLogger("my_app.imagen")
+custom_logger.setLevel(logging.INFO)
+
+# Configure for all client instances
+ImagenClient.set_logger(custom_logger, logging.DEBUG)
+
+# Or configure per-client
+async with ImagenClient("api_key", logger=custom_logger, logger_level=logging.DEBUG) as client:
+    # Your operations with custom logging
+    pass
+```
+
+## Complete Example with Error Handling
+
+```python
+import asyncio
+import os
+import uuid
+from imagen_sdk import (
+    ImagenClient,
+    EditOptions,
+    PhotographyType,
+    AuthenticationError,
+    ProjectError,
+    UploadError,
+    DownloadError
+)
+
+async def main():
+    API_KEY = os.getenv("IMAGEN_API_KEY")
+    if not API_KEY:
+        print("❌ API Key not found")
+        return
+    
+    IMAGE_PATHS = ["sample_photos/image1.dng", "sample_photos/image2.dng"]
+    PROJECT_NAME = f"Wedding Session - {uuid.uuid4().hex[:8]}"
+    
+    try:
+        async with ImagenClient(API_KEY) as client:
+            # Get profiles
+            profiles = await client.get_profiles()
+            if not profiles:
+                raise Exception("No profiles found")
+            
+            chosen_profile = next((p for p in profiles if p.image_type == "RAW"), None)
+            print(f"Using profile: '{chosen_profile.profile_name}'")
+            
+            # Create project
+            project_uuid = await client.create_project(PROJECT_NAME)
+            print(f"Created project: {project_uuid}")
+            
+            # Upload with progress
+            def upload_progress(completed, total, _):
+                print(f"Upload: {completed}/{total}", end="\r")
+            
+            upload_summary = await client.upload_images(
+                project_uuid=project_uuid,
+                image_paths=IMAGE_PATHS,
+                progress_callback=upload_progress,
+            )
+            print(f"\nUploaded: {upload_summary.successful}/{upload_summary.total}")
+            
+            if upload_summary.successful == 0:
+                print("No files uploaded successfully")
+                return
+            
+            # Start editing
+            editing_options = EditOptions(crop=True, straighten=True)
+            await client.start_editing(
+                project_uuid=project_uuid,
+                profile_key=chosen_profile.profile_key,
+                photography_type=PhotographyType.WEDDING,
+                edit_options=editing_options,
+            )
+            print("Editing finished")
+            
+            # Get download links
+            download_links = await client.get_download_links(project_uuid)
+            print(f"Found {len(download_links)} download links")
+    
+    except AuthenticationError:
+        print("❌ Invalid API key")
+    except UploadError as e:
+        print(f"❌ Upload failed: {e}")
+    except ProjectError as e:
+        print(f"❌ Project operation failed: {e}")
+    except Exception as e:
+        print(f"❌ Error: {e}")
+
+asyncio.run(main())
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Wedding Photography" icon="ring" href="/guides/wedding-photography">
+    Specialized workflow for wedding photos
+  </Card>
+  <Card title="Batch Processing" icon="layer-group" href="/guides/batch-processing">
+    Process large collections efficiently
+  </Card>
+  <Card title="Error Handling" icon="shield-check" href="/guides/error-handling">
+    Handle errors gracefully
+  </Card>
+  <Card title="API Reference" icon="book" href="/api/imagen-client">
+    Complete ImagenClient documentation
+  </Card>
+</CardGroup>

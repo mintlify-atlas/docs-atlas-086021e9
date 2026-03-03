@@ -1,0 +1,605 @@
+---
+title: "Exceptions"
+description: "Exception classes for error handling in the Imagen SDK"
+---
+
+## Overview
+
+The Imagen SDK provides a hierarchy of exception classes to help you handle different types of errors that may occur during API operations. All exceptions inherit from the base `ImagenError` class, allowing you to catch all SDK-related errors with a single exception handler or handle specific error types individually.
+
+## Exception Hierarchy
+
+```
+ImagenError (base)
+├── AuthenticationError
+├── ProjectError
+├── UploadError
+└── DownloadError
+```
+
+## Import
+
+```python
+from imagen_sdk import (
+    ImagenError,
+    AuthenticationError,
+    ProjectError,
+    UploadError,
+    DownloadError
+)
+```
+
+## Exception Classes
+
+### ImagenError
+
+Base exception class for all Imagen SDK errors.
+
+**Inheritance:** `Exception`
+
+**Description:** This is the parent class for all SDK-specific exceptions. Use this to catch any error originating from the Imagen SDK.
+
+**When raised:** Never raised directly; only raised through its subclasses.
+
+**Example:**
+
+```python
+from imagen_sdk import quick_edit, ImagenError
+
+try:
+    result = await quick_edit(
+        api_key="your_api_key",
+        profile_key=5700,
+        image_paths=["photo.cr2"],
+        download=True
+    )
+except ImagenError as e:
+    # Catches any SDK-related error
+    print(f"SDK error occurred: {e}")
+    # Log error, notify user, etc.
+```
+
+---
+
+### AuthenticationError
+
+Raised when authentication fails.
+
+**Inheritance:** `ImagenError`
+
+**Description:** This exception is raised when the API key is invalid, missing, or when access is unauthorized.
+
+**Common causes:**
+- Invalid or expired API key
+- API key not activated by support
+- Unauthorized access to resources
+- Missing API key parameter
+
+**Example:**
+
+```python
+from imagen_sdk import get_profiles, AuthenticationError
+
+try:
+    profiles = await get_profiles("invalid_api_key")
+except AuthenticationError:
+    print("❌ Authentication failed - please check your API key")
+    print("Solutions:")
+    print("  1. Verify your API key is correct")
+    print("  2. Contact support to activate your API key")
+    print("  3. Check environment variable: echo $IMAGEN_API_KEY")
+```
+
+**Testing your API key:**
+
+```python
+from imagen_sdk import get_profiles, AuthenticationError
+import os
+
+async def test_api_key():
+    api_key = os.getenv("IMAGEN_API_KEY")
+    
+    if not api_key:
+        print("❌ API key not found in environment variables")
+        return False
+    
+    try:
+        profiles = await get_profiles(api_key)
+        print(f"✅ Authentication successful! Found {len(profiles)} profiles")
+        return True
+    except AuthenticationError as e:
+        print(f"❌ Authentication failed: {e}")
+        return False
+```
+
+---
+
+### ProjectError
+
+Raised when project operations fail.
+
+**Inheritance:** `ImagenError`
+
+**Description:** This exception is raised when project-related operations encounter errors, such as project creation, editing, or export failures.
+
+**Common causes:**
+- Duplicate project name
+- Project editing failures
+- Export operation errors
+- Invalid project UUID
+- API errors during project operations
+
+**Example:**
+
+```python
+from imagen_sdk import ImagenClient, ProjectError
+
+async with ImagenClient("your_api_key") as client:
+    try:
+        # Attempt to create a project with a potentially duplicate name
+        project_uuid = await client.create_project("Wedding Photos")
+    except ProjectError as e:
+        print(f"❌ Project creation failed: {e}")
+        # Use a unique name with timestamp
+        from datetime import datetime
+        unique_name = f"Wedding Photos {datetime.now().strftime('%Y%m%d_%H%M%S')}"
+        project_uuid = await client.create_project(unique_name)
+        print(f"✅ Created project with unique name: {unique_name}")
+```
+
+**Handling duplicate project names:**
+
+```python
+from imagen_sdk import ImagenClient, ProjectError
+from datetime import datetime
+
+async def create_unique_project(client, base_name):
+    try:
+        # Try creating with base name
+        project_uuid = await client.create_project(base_name)
+        return project_uuid
+    except ProjectError as e:
+        if "already exists" in str(e).lower():
+            # Add timestamp to make it unique
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            unique_name = f"{base_name}_{timestamp}"
+            project_uuid = await client.create_project(unique_name)
+            print(f"Project name existed. Created as: {unique_name}")
+            return project_uuid
+        else:
+            # Re-raise if it's a different error
+            raise
+```
+
+**Handling editing failures:**
+
+```python
+from imagen_sdk import ImagenClient, ProjectError, EditOptions
+
+async with ImagenClient("your_api_key") as client:
+    project_uuid = await client.create_project()
+    await client.upload_images(project_uuid, ["photo.cr2"])
+    
+    try:
+        edit_options = EditOptions(crop=True, straighten=True)
+        await client.start_editing(
+            project_uuid,
+            profile_key=5700,
+            edit_options=edit_options
+        )
+    except ProjectError as e:
+        print(f"❌ Editing failed: {e}")
+        # Log error details, notify user, attempt recovery
+```
+
+---
+
+### UploadError
+
+Raised when upload operations fail.
+
+**Inheritance:** `ImagenError`
+
+**Description:** This exception is raised when file uploads encounter errors, including validation failures and network issues.
+
+**Common causes:**
+- Mixed file types (RAW and JPEG in same project)
+- Invalid file paths or missing files
+- Unsupported file formats
+- Network timeout or connection issues
+- File validation failures
+- Profile type mismatch (RAW profile with JPEG files)
+
+**Example:**
+
+```python
+from imagen_sdk import quick_edit, UploadError
+
+try:
+    result = await quick_edit(
+        api_key="your_api_key",
+        profile_key=5700,
+        image_paths=["photo1.cr2", "photo2.jpg"],  # Mixed types - will fail!
+        download=True
+    )
+except UploadError as e:
+    print(f"❌ Upload failed: {e}")
+    print("Common causes:")
+    print("  - Mixed file types (RAW and JPEG)")
+    print("  - Invalid file paths")
+    print("  - Unsupported formats")
+    print("  - Network issues")
+```
+
+**Validating files before upload:**
+
+```python
+from imagen_sdk import get_profile, check_files_match_profile_type, UploadError
+import logging
+
+logger = logging.getLogger(__name__)
+
+async def safe_upload(api_key, profile_key, image_paths):
+    try:
+        # Validate files match profile type
+        profile = await get_profile(api_key, profile_key)
+        check_files_match_profile_type(image_paths, profile, logger)
+        print("✅ All files are compatible with this profile")
+        
+        # Proceed with upload
+        from imagen_sdk import quick_edit
+        result = await quick_edit(
+            api_key=api_key,
+            profile_key=profile_key,
+            image_paths=image_paths,
+            download=True
+        )
+        return result
+        
+    except UploadError as e:
+        print(f"❌ File validation failed: {e}")
+        # Separate RAW and JPEG files, retry with correct groups
+        return None
+```
+
+**Handling network issues:**
+
+```python
+from imagen_sdk import ImagenClient, UploadError
+import asyncio
+
+async def robust_upload(client, project_uuid, image_paths):
+    max_retries = 3
+    retry_delay = 5  # seconds
+    
+    for attempt in range(max_retries):
+        try:
+            upload_result = await client.upload_images(
+                project_uuid,
+                image_paths,
+                max_concurrent=3,  # Lower concurrency for reliability
+                calculate_md5=True  # Verify integrity
+            )
+            print(f"✅ Upload successful: {upload_result.successful}/{upload_result.total}")
+            return upload_result
+            
+        except UploadError as e:
+            if "timeout" in str(e).lower() or "network" in str(e).lower():
+                if attempt < max_retries - 1:
+                    print(f"⚠️  Upload failed (attempt {attempt + 1}/{max_retries}). Retrying in {retry_delay}s...")
+                    await asyncio.sleep(retry_delay)
+                else:
+                    print(f"❌ Upload failed after {max_retries} attempts: {e}")
+                    raise
+            else:
+                # Non-network error, don't retry
+                raise
+```
+
+**Separating RAW and JPEG files:**
+
+```python
+from imagen_sdk import RAW_EXTENSIONS, JPG_EXTENSIONS, UploadError
+from pathlib import Path
+
+def separate_files_by_type(image_paths):
+    raw_files = []
+    jpeg_files = []
+    unsupported = []
+    
+    for path in image_paths:
+        ext = Path(path).suffix.lower()
+        if ext in RAW_EXTENSIONS:
+            raw_files.append(path)
+        elif ext in JPG_EXTENSIONS:
+            jpeg_files.append(path)
+        else:
+            unsupported.append(path)
+    
+    return raw_files, jpeg_files, unsupported
+
+# Usage
+image_paths = ["photo1.cr2", "photo2.nef", "photo3.jpg", "photo4.jpeg"]
+raw_files, jpeg_files, unsupported = separate_files_by_type(image_paths)
+
+if unsupported:
+    print(f"⚠️  Unsupported files: {unsupported}")
+
+# Process RAW files
+if raw_files:
+    try:
+        result = await quick_edit(
+            api_key="your_api_key",
+            profile_key=5700,  # RAW profile
+            image_paths=raw_files,
+            download=True
+        )
+    except UploadError as e:
+        print(f"RAW upload failed: {e}")
+
+# Process JPEG files separately
+if jpeg_files:
+    try:
+        result = await quick_edit(
+            api_key="your_api_key",
+            profile_key=5701,  # JPEG profile
+            image_paths=jpeg_files,
+            download=True
+        )
+    except UploadError as e:
+        print(f"JPEG upload failed: {e}")
+```
+
+---
+
+### DownloadError
+
+Raised when download operations fail.
+
+**Inheritance:** `ImagenError`
+
+**Description:** This exception is raised when downloading edited files or exports encounters errors.
+
+**Common causes:**
+- Expired download URLs
+- Network connectivity issues
+- Insufficient disk space
+- Invalid output directory
+- File permission errors
+
+**Example:**
+
+```python
+from imagen_sdk import ImagenClient, DownloadError
+
+async with ImagenClient("your_api_key") as client:
+    try:
+        # Get download links
+        download_links = await client.get_download_links(project_uuid)
+        
+        # Download files
+        downloaded_files = await client.download_files(
+            download_links,
+            output_dir="edited_photos"
+        )
+        print(f"✅ Downloaded {len(downloaded_files)} files")
+        
+    except DownloadError as e:
+        print(f"❌ Download failed: {e}")
+        print("Common causes:")
+        print("  - Expired download URLs")
+        print("  - Network issues")
+        print("  - Insufficient disk space")
+        print("  - Invalid output directory")
+```
+
+**Handling disk space issues:**
+
+```python
+from imagen_sdk import ImagenClient, DownloadError
+import shutil
+from pathlib import Path
+
+async def check_disk_space_and_download(client, download_links, output_dir):
+    # Check available disk space
+    output_path = Path(output_dir)
+    output_path.mkdir(parents=True, exist_ok=True)
+    
+    stat = shutil.disk_usage(output_path)
+    available_gb = stat.free / (1024 ** 3)
+    
+    print(f"Available disk space: {available_gb:.2f} GB")
+    
+    if available_gb < 1.0:  # Less than 1GB
+        print("⚠️  Warning: Low disk space. Download may fail.")
+    
+    try:
+        downloaded_files = await client.download_files(
+            download_links,
+            output_dir=str(output_path)
+        )
+        return downloaded_files
+    except DownloadError as e:
+        if "space" in str(e).lower():
+            print(f"❌ Download failed due to insufficient disk space: {e}")
+            print(f"Please free up space and try again.")
+        raise
+```
+
+**Retry logic for failed downloads:**
+
+```python
+from imagen_sdk import ImagenClient, DownloadError
+import asyncio
+
+async def download_with_retry(client, download_links, output_dir, max_retries=3):
+    for attempt in range(max_retries):
+        try:
+            downloaded_files = await client.download_files(
+                download_links,
+                output_dir=output_dir,
+                max_concurrent=3  # Lower concurrency for stability
+            )
+            print(f"✅ Successfully downloaded {len(downloaded_files)} files")
+            return downloaded_files
+            
+        except DownloadError as e:
+            if attempt < max_retries - 1:
+                wait_time = (attempt + 1) * 5  # Exponential backoff
+                print(f"⚠️  Download failed (attempt {attempt + 1}/{max_retries})")
+                print(f"Retrying in {wait_time} seconds...")
+                await asyncio.sleep(wait_time)
+            else:
+                print(f"❌ Download failed after {max_retries} attempts: {e}")
+                raise
+```
+
+## Comprehensive Error Handling
+
+### Complete Workflow with Error Handling
+
+```python
+from imagen_sdk import (
+    quick_edit,
+    EditOptions,
+    PhotographyType,
+    ImagenError,
+    AuthenticationError,
+    ProjectError,
+    UploadError,
+    DownloadError
+)
+import logging
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+async def process_photos_safely(api_key, profile_key, image_paths):
+    try:
+        edit_options = EditOptions(
+            crop=True,
+            straighten=True,
+            smooth_skin=True
+        )
+        
+        result = await quick_edit(
+            api_key=api_key,
+            profile_key=profile_key,
+            image_paths=image_paths,
+            photography_type=PhotographyType.PORTRAITS,
+            edit_options=edit_options,
+            download=True,
+            download_dir="edited_photos"
+        )
+        
+        logger.info(f"✅ Success! Processed {len(result.downloaded_files)} photos")
+        return result
+        
+    except AuthenticationError:
+        logger.error("❌ Authentication failed - check your API key")
+        logger.error("Visit https://support.imagen-ai.com to get help")
+        return None
+        
+    except UploadError as e:
+        logger.error(f"❌ Upload failed: {e}")
+        logger.error("Check file paths and ensure all files are the same type (RAW or JPEG)")
+        return None
+        
+    except ProjectError as e:
+        logger.error(f"❌ Project operation failed: {e}")
+        logger.error("Try using a unique project name or check editing parameters")
+        return None
+        
+    except DownloadError as e:
+        logger.error(f"❌ Download failed: {e}")
+        logger.error("Check network connection and disk space")
+        return None
+        
+    except ImagenError as e:
+        logger.error(f"❌ SDK error: {e}")
+        return None
+        
+    except Exception as e:
+        logger.error(f"❌ Unexpected error: {e}")
+        raise
+```
+
+### Step-by-Step Error Handling
+
+```python
+from imagen_sdk import ImagenClient, EditOptions, PhotographyType
+from imagen_sdk import AuthenticationError, ProjectError, UploadError, DownloadError
+
+async def detailed_workflow(api_key, profile_key, image_paths):
+    try:
+        async with ImagenClient(api_key) as client:
+            # Step 1: Create project
+            try:
+                project_uuid = await client.create_project("My Photos")
+                print(f"✅ Project created: {project_uuid}")
+            except ProjectError as e:
+                print(f"❌ Project creation failed: {e}")
+                # Use auto-generated name
+                project_uuid = await client.create_project()
+                print(f"✅ Created with auto-generated name: {project_uuid}")
+            
+            # Step 2: Upload files
+            try:
+                upload_result = await client.upload_images(
+                    project_uuid,
+                    image_paths,
+                    calculate_md5=True
+                )
+                print(f"✅ Uploaded: {upload_result.successful}/{upload_result.total}")
+            except UploadError as e:
+                print(f"❌ Upload failed: {e}")
+                return None
+            
+            # Step 3: Start editing
+            try:
+                edit_options = EditOptions(crop=True, straighten=True)
+                await client.start_editing(
+                    project_uuid,
+                    profile_key=profile_key,
+                    photography_type=PhotographyType.PORTRAITS,
+                    edit_options=edit_options
+                )
+                print("✅ Editing complete")
+            except ProjectError as e:
+                print(f"❌ Editing failed: {e}")
+                return None
+            
+            # Step 4: Download results
+            try:
+                download_links = await client.get_download_links(project_uuid)
+                downloaded_files = await client.download_files(
+                    download_links,
+                    output_dir="edited_photos"
+                )
+                print(f"✅ Downloaded {len(downloaded_files)} files")
+                return downloaded_files
+            except DownloadError as e:
+                print(f"❌ Download failed: {e}")
+                return None
+                
+    except AuthenticationError:
+        print("❌ Authentication failed - invalid API key")
+        return None
+```
+
+## Best Practices
+
+1. **Always catch specific exceptions first**, then fall back to the base `ImagenError`
+2. **Use try-except blocks around each major operation** for better error isolation
+3. **Log errors with context** to help with debugging
+4. **Validate inputs before API calls** to catch errors early
+5. **Implement retry logic** for network-related errors
+6. **Provide helpful error messages** to users
+7. **Check disk space** before large downloads
+8. **Test API key validity** before starting long workflows
+
+## Related
+
+- See [Error Handling Guide](/guides/error-handling) for more patterns
+- Learn about [File Formats](/concepts/file-formats) to understand supported formats
+- Review [Installation](/installation) for API key setup

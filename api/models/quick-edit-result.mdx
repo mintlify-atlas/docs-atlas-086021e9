@@ -1,0 +1,242 @@
+---
+title: QuickEditResult
+description: Complete result from a quick edit operation
+---
+
+## Overview
+
+The `QuickEditResult` model contains comprehensive results from a quick edit operation, including project information, upload status, download links, and local file paths.
+
+## Model Definition
+
+```python
+from imagen_sdk.models import QuickEditResult
+```
+
+## Fields
+
+<ParamField path="project_uuid" type="str" required>
+  UUID of the created project.
+  
+  This unique identifier can be used to reference the project in subsequent API calls.
+</ParamField>
+
+<ParamField path="upload_summary" type="UploadSummary" required>
+  Summary of upload results.
+  
+  Contains detailed information about which files were successfully uploaded and any failures.
+  
+  See [UploadSummary](/api/models/upload-summary) for details.
+</ParamField>
+
+<ParamField path="download_links" type="list[str]" required>
+  URLs to download edited images.
+  
+  Presigned URLs that can be used to download the processed images directly.
+</ParamField>
+
+<ParamField path="export_links" type="list[str] | None" default="None">
+  URLs to download exported images.
+  
+  Available when images have been exported to additional formats. `None` if export was not requested.
+</ParamField>
+
+<ParamField path="downloaded_files" type="list[str] | None" default="None">
+  Local paths of downloaded edited files.
+  
+  Populated when the SDK automatically downloads edited images. Contains absolute paths to the downloaded files. `None` if files were not downloaded.
+</ParamField>
+
+<ParamField path="exported_files" type="list[str] | None" default="None">
+  Local paths of downloaded exported files.
+  
+  Populated when the SDK automatically downloads exported images. Contains absolute paths to the downloaded files. `None` if export files were not downloaded.
+</ParamField>
+
+## Usage Examples
+
+### Basic Quick Edit
+
+```python
+from imagen_sdk import ImagenClient
+from imagen_sdk.models import EditOptions
+
+client = ImagenClient(api_key="your_api_key")
+
+# Perform quick edit
+result = client.quick_edit(
+    images=["/path/to/image1.jpg", "/path/to/image2.jpg"],
+    profile_key=12345,
+    edit_options=EditOptions(crop=True, straighten=True)
+)
+
+print(f"Project UUID: {result.project_uuid}")
+print(f"Uploaded: {result.upload_summary.successful}/{result.upload_summary.total} files")
+print(f"Download links: {len(result.download_links)}")
+```
+
+### Accessing Upload Summary
+
+```python
+# Check upload results
+if result.upload_summary.failed > 0:
+    print(f"Warning: {result.upload_summary.failed} files failed to upload")
+    for upload_result in result.upload_summary.results:
+        if not upload_result.success:
+            print(f"  Failed: {upload_result.file} - {upload_result.error}")
+else:
+    print("All files uploaded successfully!")
+```
+
+### Downloading Edited Images
+
+```python
+import requests
+from pathlib import Path
+
+# Create output directory
+output_dir = Path("edited_images")
+output_dir.mkdir(exist_ok=True)
+
+# Download all edited images
+for i, download_url in enumerate(result.download_links):
+    response = requests.get(download_url)
+    output_path = output_dir / f"edited_{i+1}.jpg"
+    output_path.write_bytes(response.content)
+    print(f"Downloaded: {output_path}")
+```
+
+### Quick Edit with Auto-Download
+
+```python
+# Quick edit with automatic download
+result = client.quick_edit(
+    images=["/path/to/image1.jpg"],
+    profile_key=12345,
+    edit_options=EditOptions(crop=True),
+    download_path="./output"  # SDK downloads automatically
+)
+
+# Access downloaded file paths
+if result.downloaded_files:
+    print(f"Edited images saved to:")
+    for file_path in result.downloaded_files:
+        print(f"  - {file_path}")
+```
+
+### Working with Export Links
+
+```python
+# Quick edit with export
+result = client.quick_edit(
+    images=["/path/to/images/"],
+    profile_key=12345,
+    edit_options=EditOptions(crop=True),
+    export_format="png"  # Request export to PNG
+)
+
+# Check if export links are available
+if result.export_links:
+    print(f"Export links available: {len(result.export_links)}")
+    for link in result.export_links:
+        print(f"  - {link}")
+else:
+    print("No export links available")
+```
+
+### Complete Workflow Example
+
+```python
+from imagen_sdk import ImagenClient
+from imagen_sdk.models import EditOptions
+from pathlib import Path
+
+client = ImagenClient(api_key="your_api_key")
+
+# Set up edit options
+options = EditOptions(
+    crop=True,
+    straighten=True,
+    hdr_merge=True
+)
+
+# Perform quick edit
+result = client.quick_edit(
+    images=[
+        "/path/to/photo1.jpg",
+        "/path/to/photo2.jpg",
+        "/path/to/photo3.jpg"
+    ],
+    profile_key=12345,
+    edit_options=options,
+    download_path="./edited_output"
+)
+
+# Display results
+print(f"Project created: {result.project_uuid}")
+print(f"\nUpload Summary:")
+print(f"  Total: {result.upload_summary.total}")
+print(f"  Successful: {result.upload_summary.successful}")
+print(f"  Failed: {result.upload_summary.failed}")
+
+# Show download links
+print(f"\nDownload links ({len(result.download_links)}):")
+for i, link in enumerate(result.download_links, 1):
+    print(f"  {i}. {link}")
+
+# Show downloaded files
+if result.downloaded_files:
+    print(f"\nDownloaded files ({len(result.downloaded_files)}):")
+    for file_path in result.downloaded_files:
+        size = Path(file_path).stat().st_size / (1024 * 1024)  # MB
+        print(f"  - {file_path} ({size:.2f} MB)")
+```
+
+### Handling Partial Success
+
+```python
+result = client.quick_edit(
+    images=image_paths,
+    profile_key=12345,
+    edit_options=options
+)
+
+# Check if all uploads succeeded
+if result.upload_summary.successful == result.upload_summary.total:
+    print("All images processed successfully!")
+    # Proceed with downloads
+    for link in result.download_links:
+        # Download logic here
+        pass
+else:
+    # Some uploads failed
+    print(f"Partial success: {result.upload_summary.successful}/{result.upload_summary.total}")
+    print(f"Proceeding with {len(result.download_links)} edited images")
+    
+    # Log failed uploads
+    failed = [r for r in result.upload_summary.results if not r.success]
+    for failed_result in failed:
+        print(f"Failed: {failed_result.file} - {failed_result.error}")
+```
+
+### Using Project UUID for Follow-up Operations
+
+```python
+# Perform initial quick edit
+result = client.quick_edit(
+    images=image_paths,
+    profile_key=12345,
+    edit_options=options
+)
+
+# Save project UUID for later use
+project_uuid = result.project_uuid
+
+# Later: check project status
+status = client.get_project_status(project_uuid)
+print(f"Project status: {status.status}")
+
+# Later: get download links again
+links = client.get_download_links(project_uuid)
+print(f"Available downloads: {len(links)}")
+```

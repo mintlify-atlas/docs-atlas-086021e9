@@ -1,0 +1,449 @@
+---
+title: "Wedding Photography Workflow"
+description: "Specialized workflow and best practices for editing wedding photos with Imagen AI"
+---
+
+This guide demonstrates the complete workflow for processing wedding photos, from ceremony to reception, with optimized editing options for portraits and events.
+
+## Quick Wedding Workflow
+
+Process an entire wedding shoot with one function call:
+
+```python
+import asyncio
+from imagen_sdk import quick_edit, PhotographyType, EditOptions
+
+async def process_wedding():
+    # Define editing options for wedding portraits
+    portrait_options = EditOptions(
+        portrait_crop=True,  # Portrait-specific cropping
+        straighten=True,     # Fix tilted shots
+        smooth_skin=True,    # Enhance skin in portraits
+        subject_mask=True    # Isolate subjects
+    )
+    
+    result = await quick_edit(
+        api_key="your_api_key",
+        profile_key=5700,
+        image_paths=["ceremony_01.cr2", "portraits_01.nef", "reception_01.dng"],
+        project_name="Sarah & Mike Wedding",
+        photography_type=PhotographyType.WEDDING,
+        edit_options=portrait_options,
+        export=True,  # Also export final JPEGs
+        download=True,
+        download_dir="wedding_edited"
+    )
+    
+    print(f"Wedding photos ready: {len(result.downloaded_files)} XMP files")
+    print(f"Exported JPEGs: {len(result.exported_files)} files")
+
+asyncio.run(process_wedding())
+```
+
+## Wedding Edit Options
+
+Different parts of a wedding benefit from different editing approaches:
+
+### Portrait Sessions (Couples, Family)
+
+```python
+portrait_options = EditOptions(
+    portrait_crop=True,  # Perfect for couples and portraits
+    smooth_skin=True,    # Enhance skin in portraits
+    straighten=True,     # Fix tilted shots
+    subject_mask=True    # Isolate subjects
+)
+```
+
+### Ceremony & Events
+
+```python
+event_options = EditOptions(
+    crop=True,          # General event cropping
+    straighten=True,    # Fix handheld shots
+    smooth_skin=True,   # Enhance people in photos
+    subject_mask=True   # Isolate subjects from backgrounds
+)
+```
+
+### Detail Shots & Rings
+
+```python
+detail_options = EditOptions(
+    crop=True,       # Basic cropping
+    straighten=True, # Straighten images
+    hdr_merge=False  # Minimal processing
+)
+```
+
+## Step-by-Step Wedding Workflow
+
+For more control, use `ImagenClient` to process different parts of the wedding separately:
+
+<Steps>
+  <Step title="Organize Your Files">
+    Separate wedding photos into logical groups:
+
+    ```python
+    from pathlib import Path
+    
+    wedding_dir = Path("sarah_mike_wedding")
+    
+    # Organize by session
+    ceremony_photos = list(wedding_dir.glob("ceremony/*.cr2"))
+    portraits_photos = list(wedding_dir.glob("portraits/*.nef"))
+    reception_photos = list(wedding_dir.glob("reception/*.dng"))
+    details_photos = list(wedding_dir.glob("details/*.cr2"))
+    
+    print(f"Ceremony: {len(ceremony_photos)} photos")
+    print(f"Portraits: {len(portraits_photos)} photos")
+    print(f"Reception: {len(reception_photos)} photos")
+    print(f"Details: {len(details_photos)} photos")
+    ```
+  </Step>
+
+  <Step title="Process Each Session">
+    Create separate projects for different editing styles:
+
+    ```python
+    import asyncio
+    from datetime import datetime
+    from imagen_sdk import ImagenClient, EditOptions, PhotographyType
+    
+    async def process_wedding_sessions():
+        async with ImagenClient("your_api_key") as client:
+            date_str = datetime.now().strftime("%Y_%m_%d")
+            
+            # Process portraits with portrait-specific options
+            portraits_project = await client.create_project(
+                f"Sarah_Mike_Portraits_{date_str}"
+            )
+            
+            await client.upload_images(
+                portraits_project,
+                [str(p) for p in portraits_photos]
+            )
+            
+            portrait_options = EditOptions(
+                portrait_crop=True,
+                smooth_skin=True,
+                subject_mask=True,
+                straighten=True
+            )
+            
+            await client.start_editing(
+                portraits_project,
+                profile_key=5700,
+                photography_type=PhotographyType.WEDDING,
+                edit_options=portrait_options
+            )
+            
+            print("✅ Portraits editing complete")
+            
+            # Process ceremony with event options
+            ceremony_project = await client.create_project(
+                f"Sarah_Mike_Ceremony_{date_str}"
+            )
+            
+            await client.upload_images(
+                ceremony_project,
+                [str(p) for p in ceremony_photos]
+            )
+            
+            event_options = EditOptions(
+                crop=True,
+                straighten=True,
+                smooth_skin=True,
+                subject_mask=True
+            )
+            
+            await client.start_editing(
+                ceremony_project,
+                profile_key=5700,
+                photography_type=PhotographyType.WEDDING,
+                edit_options=event_options
+            )
+            
+            print("✅ Ceremony editing complete")
+    
+    asyncio.run(process_wedding_sessions())
+    ```
+  </Step>
+
+  <Step title="Download and Organize">
+    Download edited files into organized directories:
+
+    ```python
+    async def download_wedding_files():
+        async with ImagenClient("your_api_key") as client:
+            # Download portraits
+            portraits_links = await client.get_download_links(portraits_project)
+            await client.download_files(
+                portraits_links,
+                output_dir="wedding_edited/portraits"
+            )
+            
+            # Download ceremony
+            ceremony_links = await client.get_download_links(ceremony_project)
+            await client.download_files(
+                ceremony_links,
+                output_dir="wedding_edited/ceremony"
+            )
+            
+            # Export and download JPEGs for delivery
+            await client.export_project(portraits_project)
+            portraits_export = await client.get_export_links(portraits_project)
+            await client.download_files(
+                portraits_export,
+                output_dir="wedding_delivery/portraits"
+            )
+            
+            print("✅ All wedding files downloaded")
+    ```
+  </Step>
+</Steps>
+
+## Complete Wedding Example
+
+Here's a complete example that processes an entire wedding:
+
+```python
+import asyncio
+from pathlib import Path
+from datetime import datetime
+from imagen_sdk import ImagenClient, EditOptions, PhotographyType
+
+async def process_complete_wedding():
+    """Process all wedding photos with optimized settings per session."""
+    
+    # Configuration
+    API_KEY = "your_api_key"
+    PROFILE_KEY = 5700
+    WEDDING_NAME = "Sarah_Mike_Wedding"
+    date_str = datetime.now().strftime("%Y_%m_%d")
+    
+    # Find all wedding photos
+    wedding_dir = Path("wedding_photos")
+    all_photos = list(wedding_dir.glob("**/*.cr2"))
+    
+    print(f"Found {len(all_photos)} wedding photos")
+    
+    # Define editing configurations
+    sessions = [
+        {
+            "name": "Portraits",
+            "photos": list(wedding_dir.glob("portraits/*.cr2")),
+            "options": EditOptions(
+                portrait_crop=True,
+                smooth_skin=True,
+                subject_mask=True,
+                straighten=True
+            )
+        },
+        {
+            "name": "Ceremony",
+            "photos": list(wedding_dir.glob("ceremony/*.cr2")),
+            "options": EditOptions(
+                crop=True,
+                straighten=True,
+                smooth_skin=True,
+                subject_mask=True
+            )
+        },
+        {
+            "name": "Reception",
+            "photos": list(wedding_dir.glob("reception/*.cr2")),
+            "options": EditOptions(
+                crop=True,
+                straighten=True,
+                smooth_skin=True
+            )
+        },
+        {
+            "name": "Details",
+            "photos": list(wedding_dir.glob("details/*.cr2")),
+            "options": EditOptions(
+                crop=True,
+                straighten=True
+            )
+        }
+    ]
+    
+    async with ImagenClient(API_KEY) as client:
+        for session in sessions:
+            if not session["photos"]:
+                print(f"⏭️  Skipping {session['name']} (no photos)")
+                continue
+            
+            print(f"\n📸 Processing {session['name']}: {len(session['photos'])} photos")
+            
+            # Create project
+            project_name = f"{WEDDING_NAME}_{session['name']}_{date_str}"
+            project_uuid = await client.create_project(project_name)
+            print(f"  Created project: {project_uuid}")
+            
+            # Upload with progress
+            def progress(current, total, _):
+                print(f"  Upload: {current}/{total}", end="\r")
+            
+            upload_result = await client.upload_images(
+                project_uuid,
+                [str(p) for p in session["photos"]],
+                progress_callback=progress
+            )
+            print(f"\n  Uploaded: {upload_result.successful}/{upload_result.total}")
+            
+            # Start editing
+            await client.start_editing(
+                project_uuid,
+                profile_key=PROFILE_KEY,
+                photography_type=PhotographyType.WEDDING,
+                edit_options=session["options"]
+            )
+            print(f"  ✅ {session['name']} editing complete")
+            
+            # Download edited files
+            download_links = await client.get_download_links(project_uuid)
+            downloaded = await client.download_files(
+                download_links,
+                output_dir=f"wedding_edited/{session['name'].lower()}"
+            )
+            print(f"  Downloaded {len(downloaded)} XMP files")
+            
+            # Export to JPEG for client delivery
+            await client.export_project(project_uuid)
+            export_links = await client.get_export_links(project_uuid)
+            exported = await client.download_files(
+                export_links,
+                output_dir=f"wedding_delivery/{session['name'].lower()}"
+            )
+            print(f"  Exported {len(exported)} JPEG files")
+    
+    print("\n🎉 Wedding processing complete!")
+    print("📁 Edited XMPs: wedding_edited/")
+    print("📦 Client delivery: wedding_delivery/")
+
+asyncio.run(process_complete_wedding())
+```
+
+## Best Practices for Wedding Photography
+
+### Project Organization
+
+Use descriptive, unique project names:
+
+```python
+# Good: Unique, descriptive names
+await client.create_project("Sarah_Mike_Wedding_Portraits_2024_03_15")
+await client.create_project("Johnson_Wedding_Ceremony_2024_04_20")
+
+# Avoid: Generic names that might already exist
+await client.create_project("Wedding Photos")  # Might fail if exists
+```
+
+### File Type Separation
+
+<Warning>
+  Keep RAW and JPEG files in separate projects. A single project cannot mix file types.
+</Warning>
+
+```python
+# Separate RAW and JPEG files
+raw_photos = [p for p in all_photos if p.suffix.lower() in RAW_EXTENSIONS]
+jpeg_photos = [p for p in all_photos if p.suffix.lower() in JPG_EXTENSIONS]
+
+# Process separately
+if raw_photos:
+    raw_project = await client.create_project("Wedding_RAW")
+    await client.upload_images(raw_project, [str(p) for p in raw_photos])
+
+if jpeg_photos:
+    jpeg_project = await client.create_project("Wedding_JPEG")
+    await client.upload_images(jpeg_project, [str(p) for p in jpeg_photos])
+```
+
+### Progress Tracking
+
+Provide feedback for large wedding collections:
+
+```python
+def upload_progress(current, total, filename):
+    percent = (current / total) * 100
+    print(f"Uploading: {percent:.1f}% ({current}/{total}) - {Path(filename).name}")
+
+def download_progress(current, total, message):
+    percent = (current / total) * 100
+    print(f"Downloading: {percent:.1f}% ({current}/{total})")
+
+# Use in workflow
+await client.upload_images(
+    project_uuid,
+    image_paths,
+    progress_callback=upload_progress
+)
+
+await client.download_files(
+    download_links,
+    progress_callback=download_progress
+)
+```
+
+## Error Recovery
+
+Handle errors gracefully during wedding processing:
+
+```python
+from imagen_sdk import UploadError, ProjectError
+
+async def robust_wedding_processing():
+    async with ImagenClient("your_api_key") as client:
+        for session in sessions:
+            try:
+                # Process session
+                project_uuid = await client.create_project(session["name"])
+                upload_result = await client.upload_images(
+                    project_uuid,
+                    session["photos"]
+                )
+                
+                # Check for upload failures
+                if upload_result.failed > 0:
+                    print(f"⚠️  {upload_result.failed} files failed to upload")
+                    for result in upload_result.results:
+                        if not result.success:
+                            print(f"  Failed: {result.file} - {result.error}")
+                
+                if upload_result.successful > 0:
+                    await client.start_editing(
+                        project_uuid,
+                        profile_key=5700,
+                        edit_options=session["options"]
+                    )
+                    print(f"✅ {session['name']} complete")
+                else:
+                    print(f"❌ {session['name']} - no files uploaded")
+            
+            except UploadError as e:
+                print(f"❌ Upload error in {session['name']}: {e}")
+                continue  # Continue with next session
+            except ProjectError as e:
+                print(f"❌ Project error in {session['name']}: {e}")
+                continue
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Batch Processing" icon="layer-group" href="/guides/batch-processing">
+    Process large wedding collections efficiently
+  </Card>
+  <Card title="Error Handling" icon="shield-check" href="/guides/error-handling">
+    Handle errors gracefully
+  </Card>
+  <Card title="Edit Options" icon="sliders" href="/api/models/edit-options">
+    Complete EditOptions reference
+  </Card>
+  <Card title="Photography Types" icon="camera" href="/api/enums/photography-type">
+    All photography type options
+  </Card>
+</CardGroup>

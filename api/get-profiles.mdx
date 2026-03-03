@@ -1,0 +1,186 @@
+---
+title: 'get_profiles'
+description: 'Get available editing profiles from your Imagen AI account'
+---
+
+## Overview
+
+The `get_profiles` function is a standalone convenience function that retrieves all available editing profiles from your Imagen AI account. Profiles represent your trained AI editing styles that you've created in the Imagen AI app.
+
+## Function Signature
+
+```python
+await get_profiles(
+    api_key: str,
+    base_url: str = "https://api-beta.imagen-ai.com/v1"
+) -> List[Profile]
+```
+
+## Parameters
+
+<ParamField path="api_key" type="str" required>
+  Your Imagen AI API key
+</ParamField>
+
+<ParamField path="base_url" type="str" default="https://api-beta.imagen-ai.com/v1">
+  API base URL
+</ParamField>
+
+## Return Value
+
+<ResponseField name="profiles" type="List[Profile]">
+  List of available profiles, where each Profile contains:
+  
+  <ResponseField name="profile_key" type="int">
+    Unique identifier for the profile. Use this value when calling editing functions.
+  </ResponseField>
+  
+  <ResponseField name="profile_name" type="str">
+    Human-readable name of the profile (e.g., "Wedding Style 2024", "Portrait Natural")
+  </ResponseField>
+  
+  <ResponseField name="profile_type" type="str">
+    Type/tier of the profile (e.g., "Personal", "Talent AI")
+  </ResponseField>
+  
+  <ResponseField name="image_type" type="str">
+    Type of images this profile handles: "RAW" or "JPG"
+  </ResponseField>
+</ResponseField>
+
+## Exceptions
+
+- `ImagenError` - If getting profiles fails
+- `AuthenticationError` - If API key is invalid
+
+## Examples
+
+### Basic Usage
+
+```python
+from imagen_sdk import get_profiles
+
+# Get all profiles
+profiles = await get_profiles("your_api_key")
+
+# Display profile information
+for profile in profiles:
+    print(f"{profile.profile_name} (key: {profile.profile_key})")
+```
+
+### Find Specific Profile
+
+```python
+from imagen_sdk import get_profiles
+
+# Get all profiles
+profiles = await get_profiles("your_api_key")
+
+# Find a specific profile by name
+wedding_profile = next(
+    (p for p in profiles if "wedding" in p.profile_name.lower()),
+    None
+)
+
+if wedding_profile:
+    print(f"Found profile: {wedding_profile.profile_name}")
+    print(f"Profile key: {wedding_profile.profile_key}")
+    print(f"Works with: {wedding_profile.image_type} files")
+else:
+    print("Wedding profile not found")
+```
+
+### Filter by Image Type
+
+```python
+from imagen_sdk import get_profiles
+
+# Get all profiles
+profiles = await get_profiles("your_api_key")
+
+# Separate RAW and JPEG profiles
+raw_profiles = [p for p in profiles if p.image_type.upper() == "RAW"]
+jpg_profiles = [p for p in profiles if p.image_type.upper() == "JPG"]
+
+print(f"RAW Profiles: {len(raw_profiles)}")
+for profile in raw_profiles:
+    print(f"  - {profile.profile_name} (key: {profile.profile_key})")
+
+print(f"\nJPEG Profiles: {len(jpg_profiles)}")
+for profile in jpg_profiles:
+    print(f"  - {profile.profile_name} (key: {profile.profile_key})")
+```
+
+### Display Full Profile Details
+
+```python
+from imagen_sdk import get_profiles
+
+profiles = await get_profiles("your_api_key")
+
+for profile in profiles:
+    print("-" * 50)
+    print(f"Profile: {profile.profile_name}")
+    print(f"  Key: {profile.profile_key}")
+    print(f"  Type: {profile.profile_type}")
+    print(f"  Image Type: {profile.image_type}")
+```
+
+### Use with quick_edit
+
+```python
+from imagen_sdk import get_profiles, quick_edit
+
+# Get available profiles
+profiles = await get_profiles("your_api_key")
+
+# Select the first RAW profile
+raw_profile = next(p for p in profiles if p.image_type.upper() == "RAW")
+
+# Use the profile for editing
+result = await quick_edit(
+    api_key="your_api_key",
+    profile_key=raw_profile.profile_key,
+    image_paths=["photo1.cr2", "photo2.nef"]
+)
+```
+
+### Use with ImagenClient
+
+```python
+from imagen_sdk import get_profiles, ImagenClient
+
+# Get available profiles first
+profiles = await get_profiles("your_api_key")
+
+# Display to user or select programmatically
+print("Available profiles:")
+for i, profile in enumerate(profiles, 1):
+    print(f"{i}. {profile.profile_name} ({profile.image_type})")
+
+# Use selected profile
+async with ImagenClient("your_api_key") as client:
+    project_uuid = await client.create_project("My Project")
+    await client.upload_images(project_uuid, ["photo1.jpg"])
+    await client.start_editing(project_uuid, profiles[0].profile_key)
+```
+
+## Notes
+
+<Note>
+- Profiles are created and trained in the Imagen AI web application
+- Each profile is trained on your specific editing style
+- RAW profiles only work with RAW image files (.cr2, .nef, .dng, etc.)
+- JPG profiles only work with JPEG files (.jpg, .jpeg)
+- You must have at least one trained profile to use the editing features
+</Note>
+
+<Tip>
+Call `get_profiles()` at the start of your workflow to let users select which editing style to use, or to validate that a specific profile key exists before starting a long editing job.
+</Tip>
+
+## See Also
+
+- [get_profile](/api/get-profile) - Get a specific profile by key
+- [ImagenClient.get_profiles()](/api/imagen-client#get_profiles) - Instance method version
+- [quick_edit](/api/quick-edit) - Use profiles for one-line editing workflow

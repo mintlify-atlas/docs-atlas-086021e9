@@ -1,0 +1,388 @@
+---
+title: "Profiles"
+description: "Understanding AI profiles and how to use them for consistent editing"
+---
+
+## What are Profiles?
+
+Profiles represent your **trained AI editing styles**. Each profile is created by training the AI with your manually edited photos in the Imagen AI app. The AI learns your unique editing preferences, color grading, exposure adjustments, and creative choices.
+
+Once trained, you can use a profile's `profile_key` to automatically apply your exact editing style to thousands of photos through the SDK.
+
+## Profile Structure
+
+Each profile contains the following information:
+
+```python
+class Profile(BaseModel):
+    image_type: str        # "RAW" or "JPG"
+    profile_key: int       # Unique identifier for the profile
+    profile_name: str      # Human-readable name
+    profile_type: str      # Type/tier of the profile
+```
+
+### Profile Fields
+
+<ParamField path="profile_key" type="int" required>
+  Unique identifier used when starting editing operations. This is the most important field - you'll use it in all editing requests.
+</ParamField>
+
+<ParamField path="profile_name" type="str" required>
+  Human-readable name of the profile (e.g., "Wedding Style", "Portrait Natural Light").
+</ParamField>
+
+<ParamField path="image_type" type="str" required>
+  The type of images this profile works with: `"RAW"` or `"JPG"`. Each profile is trained on one file type and can only process that type.
+</ParamField>
+
+<ParamField path="profile_type" type="str" required>
+  The tier or type of the profile (e.g., "Premium", "Standard").
+</ParamField>
+
+## Getting Your Profiles
+
+There are two ways to retrieve profile information:
+
+### Method 1: Using the Client
+
+```python
+from imagen_sdk import ImagenClient
+
+async with ImagenClient("your_api_key") as client:
+    profiles = await client.get_profiles()
+    
+    for profile in profiles:
+        print(f"Profile: {profile.profile_name}")
+        print(f"  Key: {profile.profile_key}")
+        print(f"  Type: {profile.image_type}")
+        print(f"  Tier: {profile.profile_type}")
+        print()
+```
+
+### Method 2: Using the Convenience Function
+
+```python
+from imagen_sdk import get_profiles
+
+# Quick profile check without creating a full client
+profiles = await get_profiles("your_api_key")
+
+for profile in profiles:
+    print(f"{profile.profile_name} (key: {profile.profile_key})")
+```
+
+## Using Profiles in Editing
+
+The `profile_key` is required when starting any editing operation:
+
+```python
+from imagen_sdk import ImagenClient, PhotographyType, EditOptions
+
+async with ImagenClient("your_api_key") as client:
+    # Get profiles first
+    profiles = await client.get_profiles()
+    
+    # Select a specific profile (e.g., wedding profile)
+    wedding_profile = next(
+        p for p in profiles 
+        if "wedding" in p.profile_name.lower()
+    )
+    
+    # Use the profile_key for editing
+    await client.start_editing(
+        project_uuid="project-123",
+        profile_key=wedding_profile.profile_key,
+        photography_type=PhotographyType.WEDDING
+    )
+```
+
+## Profile-File Type Matching
+
+<Warning>
+  **Critical**: Each profile works with either RAW or JPEG files, not both. You must ensure your files match the profile's `image_type` before uploading.
+</Warning>
+
+### File Type Validation
+
+The SDK provides a utility function to validate file types before upload:
+
+```python
+from imagen_sdk import get_profile, check_files_match_profile_type
+import logging
+
+# Get profile details
+profile = await get_profile("your_api_key", profile_key=5700)
+print(f"Profile '{profile.profile_name}' works with {profile.image_type} files")
+
+# Validate files
+files = ["photo1.cr2", "photo2.nef", "photo3.dng"]  # All RAW
+logger = logging.getLogger("validation")
+
+try:
+    check_files_match_profile_type(files, profile, logger)
+    print("✅ All files are compatible with this profile")
+except UploadError as e:
+    print(f"❌ File validation failed: {e}")
+```
+
+### Supported File Extensions
+
+#### RAW Files (RAW_EXTENSIONS)
+
+`.dng`, `.nef`, `.cr2`, `.arw`, `.nrw`, `.crw`, `.srf`, `.sr2`, `.orf`, `.raw`, `.rw2`, `.raf`, `.ptx`, `.pef`, `.rwl`, `.srw`, `.cr3`, `.3fr`, `.fff`
+
+#### JPEG Files (JPG_EXTENSIONS)
+
+`.jpg`, `.jpeg`
+
+```python
+from imagen_sdk import RAW_EXTENSIONS, JPG_EXTENSIONS
+from pathlib import Path
+
+# Check if file matches profile type
+file_ext = Path("photo.cr2").suffix.lower()
+is_raw = file_ext in RAW_EXTENSIONS
+is_jpeg = file_ext in JPG_EXTENSIONS
+```
+
+## Common Validation Errors
+
+### Error: RAW Profile with JPEG Files
+
+```python
+# ❌ INVALID: RAW profile cannot process JPEG files
+profile.image_type = "RAW"
+files = ["photo1.jpg", "photo2.jpeg"]
+
+# Error: RAW profile cannot be used with JPG files: ['photo1.jpg', 'photo2.jpeg']
+```
+
+**Solution**: Use a JPEG profile or convert files to RAW format.
+
+### Error: JPEG Profile with RAW Files
+
+```python
+# ❌ INVALID: JPEG profile cannot process RAW files
+profile.image_type = "JPG"
+files = ["photo1.cr2", "photo2.nef"]
+
+# Error: JPG profile cannot be used with RAW files: ['photo1.cr2', 'photo2.nef']
+```
+
+**Solution**: Use a RAW profile or convert files to JPEG format.
+
+### Error: Mixed File Types
+
+```python
+# ❌ INVALID: Cannot mix RAW and JPEG in same project
+files = ["photo1.cr2", "photo2.jpg", "photo3.nef"]
+
+# Projects can only contain one file type
+```
+
+**Solution**: Create separate projects for RAW and JPEG files.
+
+## Training Profiles (Imagen AI App)
+
+Before using the SDK, you need to train your profiles in the Imagen AI app:
+
+<Steps>
+  <Step title="Sign Up">
+    Create an account at [imagen-ai.com](https://imagen-ai.com)
+  </Step>
+  
+  <Step title="Upload Training Data">
+    Upload 3,000+ manually edited photos that represent your editing style. The more consistent your edits, the better the AI learns.
+  </Step>
+  
+  <Step title="Train Your Profile">
+    The Imagen AI app analyzes your edits and creates a Personal AI Profile that matches your style.
+  </Step>
+  
+  <Step title="Get Profile Key">
+    Once trained, retrieve your `profile_key` from the app. Use this key in the SDK for automated editing.
+  </Step>
+  
+  <Step title="Request API Access">
+    Contact support to get your API key for SDK access.
+  </Step>
+</Steps>
+
+## Profile Selection Strategy
+
+### By Photography Type
+
+```python
+# Get all profiles
+profiles = await get_profiles("your_api_key")
+
+# Filter by name for specific use cases
+wedding_profiles = [
+    p for p in profiles 
+    if "wedding" in p.profile_name.lower()
+]
+
+portrait_profiles = [
+    p for p in profiles 
+    if "portrait" in p.profile_name.lower()
+]
+
+landscape_profiles = [
+    p for p in profiles 
+    if "landscape" in p.profile_name.lower()
+]
+```
+
+### By Image Type
+
+```python
+# Separate RAW and JPEG profiles
+raw_profiles = [p for p in profiles if p.image_type == "RAW"]
+jpeg_profiles = [p for p in profiles if p.image_type == "JPG"]
+
+print(f"RAW profiles: {len(raw_profiles)}")
+print(f"JPEG profiles: {len(jpeg_profiles)}")
+```
+
+### By Profile Tier
+
+```python
+# Filter by profile type/tier
+premium_profiles = [
+    p for p in profiles 
+    if "premium" in p.profile_type.lower()
+]
+
+standard_profiles = [
+    p for p in profiles 
+    if "standard" in p.profile_type.lower()
+]
+```
+
+## Complete Example
+
+Here's a complete workflow showing profile selection and validation:
+
+```python
+import asyncio
+from imagen_sdk import (
+    ImagenClient,
+    get_profiles,
+    check_files_match_profile_type,
+    PhotographyType,
+    EditOptions,
+    UploadError
+)
+import logging
+
+async def process_wedding_photos():
+    api_key = "your_api_key"
+    logger = logging.getLogger("imagen_workflow")
+    
+    # 1. Get available profiles
+    profiles = await get_profiles(api_key)
+    print(f"Found {len(profiles)} profiles")
+    
+    # 2. Select appropriate profile
+    wedding_raw_profile = next(
+        (p for p in profiles 
+         if "wedding" in p.profile_name.lower() 
+         and p.image_type == "RAW"),
+        None
+    )
+    
+    if not wedding_raw_profile:
+        print("No wedding RAW profile found")
+        return
+    
+    print(f"Using profile: {wedding_raw_profile.profile_name}")
+    print(f"Profile key: {wedding_raw_profile.profile_key}")
+    
+    # 3. Define files to process
+    raw_files = ["ceremony_01.cr2", "ceremony_02.nef", "portraits_01.dng"]
+    
+    # 4. Validate file types
+    try:
+        check_files_match_profile_type(
+            raw_files, 
+            wedding_raw_profile, 
+            logger
+        )
+        print("✅ File validation passed")
+    except UploadError as e:
+        print(f"❌ Validation failed: {e}")
+        return
+    
+    # 5. Process with validated profile
+    async with ImagenClient(api_key) as client:
+        project_uuid = await client.create_project("Wedding_Sarah_Mike")
+        
+        upload_summary = await client.upload_images(
+            project_uuid, 
+            raw_files
+        )
+        print(f"Uploaded: {upload_summary.successful}/{upload_summary.total}")
+        
+        edit_options = EditOptions(
+            crop=True,
+            straighten=True,
+            smooth_skin=True
+        )
+        
+        await client.start_editing(
+            project_uuid,
+            profile_key=wedding_raw_profile.profile_key,
+            photography_type=PhotographyType.WEDDING,
+            edit_options=edit_options
+        )
+        
+        download_links = await client.get_download_links(project_uuid)
+        downloaded_files = await client.download_files(
+            download_links,
+            output_dir="wedding_edited"
+        )
+        
+        print(f"✅ Downloaded {len(downloaded_files)} edited files")
+
+asyncio.run(process_wedding_photos())
+```
+
+## Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Validate Before Upload" icon="shield-check">
+    Always validate file types match the profile before uploading to prevent errors.
+  </Card>
+  
+  <Card title="Name Profiles Clearly" icon="tag">
+    Use descriptive profile names in the Imagen app to easily identify them in the SDK.
+  </Card>
+  
+  <Card title="Separate RAW and JPEG" icon="layer-group">
+    Create separate profiles for RAW and JPEG workflows for optimal results.
+  </Card>
+  
+  <Card title="Test with Small Batches" icon="vial">
+    Test new profiles with a small batch of images before processing large collections.
+  </Card>
+</CardGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Workflow" href="/concepts/workflow" icon="diagram-project">
+    Learn the complete editing workflow
+  </Card>
+  
+  <Card title="Edit Options" href="/concepts/edit-options" icon="sliders">
+    Customize editing with advanced options
+  </Card>
+  
+  <Card title="File Formats" href="/concepts/file-formats" icon="file-image">
+    See all supported file formats
+  </Card>
+  
+  <Card title="Client Reference" href="/api/imagen-client" icon="code">
+    View the ImagenClient API reference
+  </Card>
+</CardGroup>

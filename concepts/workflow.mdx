@@ -1,0 +1,326 @@
+---
+title: "Complete Workflow"
+description: "Understanding the end-to-end Imagen AI editing workflow from upload to download"
+---
+
+## Overview
+
+The Imagen AI SDK provides a complete workflow for automated photo editing. The process follows a clear sequence of steps that transform your raw images into professionally edited photos ready for client delivery.
+
+## Workflow Steps
+
+The complete workflow consists of six main steps:
+
+<Steps>
+  <Step title="Create a Project">
+    Projects are containers for organizing related images and edits. Each project can contain either RAW files or JPEG files, but not both types mixed together.
+    
+    ```python
+    project_uuid = await client.create_project("Wedding_Photos_2024")
+    ```
+    
+    <Note>
+      Project names must be unique across your account. If a project with the same name already exists, the method will raise a `ProjectError`. Consider using timestamps or client identifiers in project names to ensure uniqueness.
+    </Note>
+  </Step>
+  
+  <Step title="Upload Images">
+    Upload your images to the project with concurrent processing and optional progress tracking. The SDK handles presigned URLs, S3 uploads, and integrity verification automatically.
+    
+    ```python
+    upload_summary = await client.upload_images(
+        project_uuid,
+        image_paths=["photo1.cr2", "photo2.nef", "photo3.dng"],
+        max_concurrent=5,
+        calculate_md5=True,  # Optional integrity checking
+        progress_callback=upload_progress
+    )
+    ```
+    
+    The upload process:
+    1. Validates local file paths
+    2. Requests presigned S3 URLs from the API
+    3. Uploads files concurrently to cloud storage
+    4. Returns an `UploadSummary` with statistics
+  </Step>
+  
+  <Step title="Start Editing">
+    Initiate AI-powered editing using your trained profile. The SDK automatically polls the status until editing completes.
+    
+    ```python
+    from imagen_sdk import PhotographyType, EditOptions
+    
+    edit_options = EditOptions(
+        crop=True,
+        straighten=True,
+        smooth_skin=True
+    )
+    
+    status = await client.start_editing(
+        project_uuid,
+        profile_key=5700,
+        photography_type=PhotographyType.WEDDING,
+        edit_options=edit_options
+    )
+    ```
+    
+    This method blocks until editing completes (can take several minutes). Progress is logged automatically during the process.
+  </Step>
+  
+  <Step title="Get Download Links">
+    Retrieve temporary download URLs for the generated XMP edit files. These XMP files contain Lightroom-compatible edit instructions.
+    
+    ```python
+    download_links = await client.get_download_links(project_uuid)
+    # Returns: List[str] of temporary download URLs
+    ```
+    
+    <Warning>
+      Download URLs are temporary and expire after a certain time. Use them promptly after retrieval.
+    </Warning>
+  </Step>
+  
+  <Step title="Export to JPEG (Optional)">
+    Convert the AI-edited images to final JPEG files for client delivery. This step is optional but recommended for final output.
+    
+    ```python
+    export_status = await client.export_project(project_uuid)
+    export_links = await client.get_export_links(project_uuid)
+    ```
+    
+    The export process applies all edits and generates high-quality JPEG files ready for delivery.
+  </Step>
+  
+  <Step title="Download Files">
+    Download the edited files (XMP or JPEG) to your local machine with concurrent processing.
+    
+    ```python
+    downloaded_files = await client.download_files(
+        download_links,
+        output_dir="edited_photos",
+        max_concurrent=5,
+        progress_callback=download_progress
+    )
+    # Returns: List[str] of local file paths
+    ```
+  </Step>
+</Steps>
+
+## Complete Example
+
+Here's a complete workflow example showing all steps together:
+
+```python
+import asyncio
+from imagen_sdk import ImagenClient, PhotographyType, EditOptions
+
+async def complete_workflow():
+    # Progress callback functions
+    def upload_progress(current, total, filename):
+        percent = (current / total) * 100
+        print(f"Upload: {percent:.1f}% - {filename}")
+    
+    def download_progress(current, total, message):
+        percent = (current / total) * 100
+        print(f"Download: {percent:.1f}% - {message}")
+
+    async with ImagenClient("your_api_key") as client:
+        # 1. Create project
+        project_uuid = await client.create_project("Wedding_Sarah_Mike_2024")
+        print(f"Created project: {project_uuid}")
+        
+        # 2. Upload images
+        upload_result = await client.upload_images(
+            project_uuid,
+            ["photo1.cr2", "photo2.nef"],
+            max_concurrent=3,
+            calculate_md5=True,
+            progress_callback=upload_progress
+        )
+        print(f"Uploaded: {upload_result.successful}/{upload_result.total}")
+        
+        # 3. Start editing
+        edit_options = EditOptions(
+            crop=True,
+            straighten=True,
+            smooth_skin=True
+        )
+        await client.start_editing(
+            project_uuid,
+            profile_key=5700,
+            photography_type=PhotographyType.WEDDING,
+            edit_options=edit_options
+        )
+        print("Editing complete!")
+        
+        # 4. Get download links
+        download_links = await client.get_download_links(project_uuid)
+        
+        # 5. Export to JPEG (optional)
+        await client.export_project(project_uuid)
+        export_links = await client.get_export_links(project_uuid)
+        
+        # 6. Download files
+        xmp_files = await client.download_files(
+            download_links,
+            output_dir="edited_xmps",
+            progress_callback=download_progress
+        )
+        
+        jpeg_files = await client.download_files(
+            export_links,
+            output_dir="final_jpegs",
+            progress_callback=download_progress
+        )
+        
+        print(f"Downloaded {len(xmp_files)} XMP and {len(jpeg_files)} JPEG files")
+
+asyncio.run(complete_workflow())
+```
+
+## Quick Workflow Function
+
+For simpler use cases, the SDK provides a `quick_edit()` convenience function that handles the entire workflow in one call:
+
+```python
+from imagen_sdk import quick_edit, EditOptions
+
+result = await quick_edit(
+    api_key="your_api_key",
+    profile_key=5700,
+    image_paths=["photo1.cr2", "photo2.nef"],
+    edit_options=EditOptions(crop=True, straighten=True),
+    export=True,
+    download=True,
+    download_dir="wedding_delivery"
+)
+
+print(f"Edited {len(result.downloaded_files)} photos")
+print(f"Project UUID: {result.project_uuid}")
+```
+
+The `quick_edit()` function automatically:
+- Creates a project
+- Validates file types
+- Uploads images
+- Starts editing
+- Gets download links
+- Optionally exports to JPEG
+- Optionally downloads files
+
+## What You Receive
+
+The Imagen AI SDK returns **Adobe-compatible edit instructions** (XMP files) that preserve your original files and allow for non-destructive editing.
+
+### XMP Files (Edit Instructions)
+
+- **Format**: Adobe XMP sidecar files
+- **Compatible with**: Lightroom Classic, Lightroom, Photoshop, Bridge
+- **Usage**: Open in your Adobe application to see AI-applied edits
+- **Editable**: Further adjust the AI-generated edits as needed
+- **Non-destructive**: Original RAW files remain untouched
+
+### JPEG Files (Optional Export)
+
+- **Format**: High-quality JPEG images
+- **Use case**: Final client delivery
+- **Content**: All AI edits applied and rendered
+- **Ready for**: Direct delivery, web upload, printing
+
+## Resource Management
+
+The SDK uses an async context manager for automatic session cleanup:
+
+```python
+# Recommended: Automatic cleanup
+async with ImagenClient("api_key") as client:
+    # Your operations here
+    pass  # Session automatically closed
+
+# Manual management (not recommended)
+client = ImagenClient("api_key")
+try:
+    # Your operations
+    pass
+finally:
+    await client.close()  # Manual cleanup required
+```
+
+## Error Handling
+
+Each step in the workflow can raise specific exceptions:
+
+```python
+from imagen_sdk import (
+    AuthenticationError,
+    ProjectError,
+    UploadError,
+    DownloadError,
+    ImagenError
+)
+
+try:
+    # Workflow operations
+    pass
+except AuthenticationError:
+    print("Invalid API key")
+except ProjectError as e:
+    print(f"Project operation failed: {e}")
+except UploadError as e:
+    print(f"Upload failed: {e}")
+except DownloadError as e:
+    print(f"Download failed: {e}")
+except ImagenError as e:
+    print(f"General API error: {e}")
+```
+
+## Status Polling
+
+The SDK automatically handles status polling for long-running operations:
+
+- **Initial interval**: 10 seconds
+- **Max interval**: 60 seconds (with exponential backoff)
+- **Max wait time**: 20 hours
+- **Auto-retry**: Built-in with increasing intervals
+
+You don't need to manually poll - the `start_editing()` and `export_project()` methods handle this automatically.
+
+## Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Use Context Managers" icon="brackets-curly">
+    Always use `async with` to ensure proper session cleanup
+  </Card>
+  
+  <Card title="Track Progress" icon="chart-line">
+    Use progress callbacks for long-running uploads and downloads
+  </Card>
+  
+  <Card title="Enable MD5 Verification" icon="shield-check">
+    Set `calculate_md5=True` for critical uploads to ensure integrity
+  </Card>
+  
+  <Card title="Handle Errors" icon="triangle-exclamation">
+    Implement proper error handling for each workflow step
+  </Card>
+</CardGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Profiles" href="/concepts/profiles" icon="user">
+    Learn about AI profiles and how to use them
+  </Card>
+  
+  <Card title="Edit Options" href="/concepts/edit-options" icon="sliders">
+    Explore all available editing parameters
+  </Card>
+  
+  <Card title="File Formats" href="/concepts/file-formats" icon="file-image">
+    See supported RAW and JPEG formats
+  </Card>
+  
+  <Card title="API Reference" href="/api/imagen-client" icon="code">
+    View detailed API documentation
+  </Card>
+</CardGroup>

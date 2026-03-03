@@ -1,0 +1,656 @@
+---
+title: "Edit Options"
+description: "Complete reference for all EditOptions parameters and their usage"
+---
+
+## Overview
+
+The `EditOptions` class allows you to customize the AI editing process with various automated tools. These options work alongside your trained profile to enhance and refine the editing workflow.
+
+```python
+from imagen_sdk import EditOptions
+
+edit_options = EditOptions(
+    crop=True,
+    straighten=True,
+    smooth_skin=True
+)
+```
+
+## EditOptions Class
+
+```python
+class EditOptions(BaseModel):
+    crop: bool | None = None
+    straighten: bool | None = None
+    hdr_merge: bool | None = None
+    portrait_crop: bool | None = None
+    smooth_skin: bool | None = None
+    subject_mask: bool | None = None
+    headshot_crop: bool | None = None
+    perspective_correction: bool | None = None
+    sky_replacement: bool | None = None
+    sky_replacement_template_id: int | None = None
+    window_pull: bool | None = None
+    crop_aspect_ratio: str | None = None
+```
+
+All parameters are optional. Only set the options you want to enable - unset options will use profile defaults.
+
+## Available Options
+
+### Cropping Tools
+
+<Warning>
+  **Mutually Exclusive**: Only one of `crop`, `portrait_crop`, or `headshot_crop` can be set to `True`.
+</Warning>
+
+<ParamField path="crop" type="bool" default="None">
+  General auto-cropping for all image types. Automatically finds optimal composition and framing.
+  
+  **Use cases**: Universal, landscapes, events, general photography
+  
+  ```python
+  EditOptions(crop=True)
+  ```
+</ParamField>
+
+<ParamField path="portrait_crop" type="bool" default="None">
+  Portrait-specific cropping optimized for people photography. Focuses on subject positioning and headroom.
+  
+  **Use cases**: Individual portraits, couple shots, family photos
+  
+  ```python
+  EditOptions(portrait_crop=True)
+  ```
+</ParamField>
+
+<ParamField path="headshot_crop" type="bool" default="None">
+  Headshot-optimized cropping for close-up portraits. Tightly frames faces for professional headshots.
+  
+  **Use cases**: Corporate headshots, LinkedIn photos, close-up portraits
+  
+  ```python
+  EditOptions(headshot_crop=True)
+  ```
+</ParamField>
+
+### Straightening & Perspective
+
+<Warning>
+  **Mutually Exclusive**: Only one of `straighten` or `perspective_correction` can be set to `True`.
+</Warning>
+
+<ParamField path="straighten" type="bool" default="None">
+  Auto-straighten horizons and tilted images. Detects and corrects horizon lines and vertical/horizontal elements.
+  
+  **Use cases**: Landscapes, seascapes, general photography
+  
+  ```python
+  EditOptions(straighten=True)
+  ```
+</ParamField>
+
+<ParamField path="perspective_correction" type="bool" default="None">
+  Correct perspective distortion in architectural and interior photography. Fixes converging vertical lines.
+  
+  **Use cases**: Architecture, real estate, interior photography
+  
+  ```python
+  EditOptions(perspective_correction=True)
+  ```
+</ParamField>
+
+### Portrait Enhancement
+
+<ParamField path="smooth_skin" type="bool" default="None">
+  Apply skin smoothing and enhancement for portrait photography. Reduces blemishes while preserving texture.
+  
+  **Use cases**: Portraits, headshots, wedding photography, beauty shots
+  
+  ```python
+  EditOptions(smooth_skin=True)
+  ```
+</ParamField>
+
+<ParamField path="subject_mask" type="bool" default="None">
+  Advanced subject isolation and masking. Separates subject from background for selective editing.
+  
+  **Use cases**: Portraits, events, subject-focused photography
+  
+  ```python
+  EditOptions(subject_mask=True)
+  ```
+</ParamField>
+
+### Landscape & Real Estate
+
+<ParamField path="sky_replacement" type="bool" default="None">
+  Enable sky enhancement and replacement. Improves or replaces sky in outdoor and architectural photos.
+  
+  **Use cases**: Landscapes, real estate exteriors, outdoor photography
+  
+  ```python
+  EditOptions(sky_replacement=True)
+  ```
+</ParamField>
+
+<ParamField path="sky_replacement_template_id" type="int" default="None">
+  Specific sky template ID to use with sky replacement. Must be used together with `sky_replacement=True`.
+  
+  **Use cases**: Custom sky looks, specific weather conditions
+  
+  ```python
+  EditOptions(
+      sky_replacement=True,
+      sky_replacement_template_id=1
+  )
+  ```
+</ParamField>
+
+<ParamField path="window_pull" type="bool" default="None">
+  Balance window exposure in interior photography. Recovers detail in bright windows while maintaining interior exposure.
+  
+  **Use cases**: Real estate interiors, architecture, indoor photography
+  
+  ```python
+  EditOptions(window_pull=True)
+  ```
+</ParamField>
+
+### Advanced Options
+
+<ParamField path="hdr_merge" type="bool" default="None">
+  Process HDR bracketed images. Merges exposure brackets for high dynamic range scenes.
+  
+  **Use cases**: High contrast scenes, real estate, landscape photography
+  
+  ```python
+  EditOptions(hdr_merge=True)
+  ```
+</ParamField>
+
+<ParamField path="crop_aspect_ratio" type="str" default="None">
+  Custom aspect ratio for cropping. Format: "width:height" (e.g., "16:9", "4:5", "1:1").
+  
+  **Use cases**: Social media, print sizes, creative framing
+  
+  ```python
+  # Cinematic widescreen
+  EditOptions(crop=True, crop_aspect_ratio="16:9")
+  
+  # Instagram square
+  EditOptions(crop=True, crop_aspect_ratio="1:1")
+  
+  # Classic 35mm
+  EditOptions(crop=True, crop_aspect_ratio="3:2")
+  
+  # Portrait orientation
+  EditOptions(crop=True, crop_aspect_ratio="4:5")
+  ```
+</ParamField>
+
+## Usage Examples
+
+### Basic Editing
+
+```python
+from imagen_sdk import ImagenClient, EditOptions
+
+edit_options = EditOptions(
+    crop=True,
+    straighten=True
+)
+
+async with ImagenClient("your_api_key") as client:
+    await client.start_editing(
+        project_uuid="project-123",
+        profile_key=5700,
+        edit_options=edit_options
+    )
+```
+
+### Portrait Photography Workflow
+
+```python
+from imagen_sdk import EditOptions, PhotographyType
+
+# Individual portraits
+portrait_options = EditOptions(
+    portrait_crop=True,      # Portrait-specific cropping
+    straighten=True,         # Fix tilted shots
+    smooth_skin=True,        # Skin enhancement
+    subject_mask=True        # Subject isolation
+)
+
+await client.start_editing(
+    project_uuid,
+    profile_key=5700,
+    photography_type=PhotographyType.PORTRAITS,
+    edit_options=portrait_options
+)
+```
+
+### Headshot Photography Workflow
+
+```python
+# Corporate headshots
+headshot_options = EditOptions(
+    headshot_crop=True,      # Tight headshot framing
+    smooth_skin=True,        # Professional skin smoothing
+    subject_mask=True        # Advanced subject isolation
+)
+
+await client.start_editing(
+    project_uuid,
+    profile_key=5700,
+    photography_type=PhotographyType.PORTRAITS,
+    edit_options=headshot_options
+)
+```
+
+### Wedding Photography Workflow
+
+```python
+from imagen_sdk import quick_edit, EditOptions, PhotographyType
+
+wedding_options = EditOptions(
+    crop=True,               # General cropping
+    straighten=True,         # Horizon correction
+    smooth_skin=True,        # Enhance portraits
+    subject_mask=True        # Isolate bride/groom
+)
+
+result = await quick_edit(
+    api_key="your_api_key",
+    profile_key=5700,
+    image_paths=["ceremony_01.cr2", "portraits_01.nef"],
+    photography_type=PhotographyType.WEDDING,
+    edit_options=wedding_options,
+    export=True,
+    download=True
+)
+```
+
+### Real Estate Photography Workflow
+
+```python
+# Exterior shots
+exterior_options = EditOptions(
+    crop=True,                       # Composition
+    perspective_correction=True,     # Fix architectural lines
+    sky_replacement=True,            # Enhance sky
+    sky_replacement_template_id=1    # Specific sky template
+)
+
+# Interior shots
+interior_options = EditOptions(
+    crop=True,                    # Composition
+    perspective_correction=True,  # Fix distortion
+    window_pull=True,             # Balance window exposure
+    hdr_merge=True                # Merge brackets if available
+)
+
+# Process exteriors
+await client.start_editing(
+    exterior_project_uuid,
+    profile_key=5700,
+    photography_type=PhotographyType.REAL_ESTATE,
+    edit_options=exterior_options
+)
+
+# Process interiors
+await client.start_editing(
+    interior_project_uuid,
+    profile_key=5700,
+    photography_type=PhotographyType.REAL_ESTATE,
+    edit_options=interior_options
+)
+```
+
+### Landscape Photography Workflow
+
+```python
+landscape_options = EditOptions(
+    crop=True,                # Optimal composition
+    straighten=True,          # Horizon alignment
+    sky_replacement=True      # Sky enhancement
+)
+
+await client.start_editing(
+    project_uuid,
+    profile_key=5700,
+    photography_type=PhotographyType.LANDSCAPE_NATURE,
+    edit_options=landscape_options
+)
+```
+
+### Social Media Crops
+
+```python
+# Instagram square format
+instagram_options = EditOptions(
+    crop=True,
+    crop_aspect_ratio="1:1"
+)
+
+# Instagram portrait format
+instagram_portrait = EditOptions(
+    crop=True,
+    crop_aspect_ratio="4:5"
+)
+
+# Cinematic widescreen
+cinematic_options = EditOptions(
+    crop=True,
+    crop_aspect_ratio="16:9"
+)
+
+# Classic 35mm
+classic_options = EditOptions(
+    crop=True,
+    crop_aspect_ratio="3:2"
+)
+```
+
+## Validation Rules
+
+The `EditOptions` class enforces mutual exclusivity rules through automatic validation:
+
+### Crop Type Validation
+
+Only one crop type can be enabled:
+
+```python
+# ✅ VALID: Single crop type
+EditOptions(crop=True)
+EditOptions(portrait_crop=True)
+EditOptions(headshot_crop=True)
+
+# ❌ INVALID: Multiple crop types
+EditOptions(crop=True, portrait_crop=True)
+# Raises: ValueError: Only one of crop, headshot_crop, or portrait_crop can be set to True.
+
+EditOptions(headshot_crop=True, portrait_crop=True)
+# Raises: ValueError: Only one of crop, headshot_crop, or portrait_crop can be set to True.
+```
+
+### Straightening Method Validation
+
+Only one straightening method can be enabled:
+
+```python
+# ✅ VALID: Single straightening method
+EditOptions(straighten=True)
+EditOptions(perspective_correction=True)
+
+# ❌ INVALID: Both straightening methods
+EditOptions(straighten=True, perspective_correction=True)
+# Raises: ValueError: Only one of straighten or perspective_correction can be set to True.
+```
+
+### Valid Combinations
+
+```python
+# ✅ VALID: Compatible options together
+EditOptions(
+    crop=True,               # General crop
+    straighten=True,         # Straighten (not perspective)
+    smooth_skin=True,        # Portrait enhancement
+    subject_mask=True,       # Subject isolation
+    hdr_merge=True          # HDR processing
+)
+
+EditOptions(
+    portrait_crop=True,         # Portrait crop (not general)
+    perspective_correction=True, # Perspective (not straighten)
+    smooth_skin=True,
+    window_pull=True
+)
+
+EditOptions(
+    headshot_crop=True,      # Headshot crop only
+    smooth_skin=True,
+    subject_mask=True
+)
+```
+
+## API Integration
+
+The `EditOptions` object converts to API format automatically:
+
+```python
+edit_options = EditOptions(
+    crop=True,
+    straighten=True,
+    smooth_skin=True
+)
+
+# Converts to API dictionary format
+api_dict = edit_options.to_api_dict()
+# Returns: {"crop": true, "straighten": true, "smooth_skin": true}
+```
+
+This happens automatically when you pass `EditOptions` to editing methods:
+
+```python
+await client.start_editing(
+    project_uuid,
+    profile_key=5700,
+    edit_options=edit_options  # Automatically converted
+)
+```
+
+## Default Behavior
+
+When options are not specified:
+
+- **`None` values**: Not sent to API (profile defaults used)
+- **`False` values**: Explicitly disabled
+- **`True` values**: Explicitly enabled
+
+```python
+# Only crop and straighten enabled, others use profile defaults
+EditOptions(crop=True, straighten=True)
+
+# Explicitly disable smooth_skin, enable crop
+EditOptions(crop=True, smooth_skin=False)
+
+# Empty options - all use profile defaults
+EditOptions()
+```
+
+## Complete Workflow Example
+
+```python
+import asyncio
+from imagen_sdk import (
+    ImagenClient,
+    EditOptions,
+    PhotographyType
+)
+
+async def process_wedding_photos():
+    async with ImagenClient("your_api_key") as client:
+        # Create project
+        project_uuid = await client.create_project("Wedding_Photos")
+        
+        # Upload images
+        await client.upload_images(
+            project_uuid,
+            ["ceremony_01.cr2", "ceremony_02.nef"]
+        )
+        
+        # Define edit options
+        edit_options = EditOptions(
+            crop=True,
+            straighten=True,
+            smooth_skin=True,
+            subject_mask=True
+        )
+        
+        # Start editing with options
+        await client.start_editing(
+            project_uuid,
+            profile_key=5700,
+            photography_type=PhotographyType.WEDDING,
+            edit_options=edit_options
+        )
+        
+        # Get and download results
+        download_links = await client.get_download_links(project_uuid)
+        files = await client.download_files(
+            download_links,
+            output_dir="wedding_edited"
+        )
+        
+        print(f"✅ Edited {len(files)} photos")
+
+asyncio.run(process_wedding_photos())
+```
+
+## Photography Type Recommendations
+
+Recommended `EditOptions` for each `PhotographyType`:
+
+<AccordionGroup>
+  <Accordion title="Portraits">
+    ```python
+    EditOptions(
+        portrait_crop=True,
+        straighten=True,
+        smooth_skin=True,
+        subject_mask=True
+    )
+    ```
+  </Accordion>
+  
+  <Accordion title="Wedding">
+    ```python
+    EditOptions(
+        crop=True,
+        straighten=True,
+        smooth_skin=True,
+        subject_mask=True
+    )
+    ```
+  </Accordion>
+  
+  <Accordion title="Real Estate">
+    ```python
+    # Exteriors
+    EditOptions(
+        crop=True,
+        perspective_correction=True,
+        sky_replacement=True
+    )
+    
+    # Interiors
+    EditOptions(
+        crop=True,
+        perspective_correction=True,
+        window_pull=True,
+        hdr_merge=True
+    )
+    ```
+  </Accordion>
+  
+  <Accordion title="Landscape/Nature">
+    ```python
+    EditOptions(
+        crop=True,
+        straighten=True,
+        sky_replacement=True
+    )
+    ```
+  </Accordion>
+  
+  <Accordion title="Events">
+    ```python
+    EditOptions(
+        crop=True,
+        straighten=True,
+        subject_mask=True
+    )
+    ```
+  </Accordion>
+  
+  <Accordion title="Family/Newborn">
+    ```python
+    EditOptions(
+        portrait_crop=True,
+        straighten=True,
+        smooth_skin=True
+    )
+    ```
+  </Accordion>
+  
+  <Accordion title="Headshots">
+    ```python
+    EditOptions(
+        headshot_crop=True,
+        smooth_skin=True,
+        subject_mask=True
+    )
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Common Aspect Ratios
+
+| Format | Ratio | Use Case |
+|--------|-------|----------|
+| Classic 35mm | `"3:2"` | Standard photography, prints |
+| Medium Format | `"4:5"` | Portrait orientation, Instagram |
+| Square | `"1:1"` | Instagram, profile photos |
+| Widescreen | `"16:9"` | Cinematic, video thumbnails |
+| Print | `"5:7"` | Standard print sizes |
+| Ultra-wide | `"21:9"` | Panoramic, cinematic |
+
+```python
+# Examples
+EditOptions(crop=True, crop_aspect_ratio="3:2")   # Classic
+EditOptions(crop=True, crop_aspect_ratio="4:5")   # Portrait
+EditOptions(crop=True, crop_aspect_ratio="1:1")   # Square
+EditOptions(crop=True, crop_aspect_ratio="16:9")  # Widescreen
+```
+
+## Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Use Type-Specific Crops" icon="crop">
+    Choose `portrait_crop` for people, `headshot_crop` for close-ups, `crop` for general use.
+  </Card>
+  
+  <Card title="Respect Mutual Exclusivity" icon="ban">
+    Only enable one crop type and one straightening method at a time.
+  </Card>
+  
+  <Card title="Match Photography Type" icon="camera">
+    Align `EditOptions` with your `PhotographyType` for optimal results.
+  </Card>
+  
+  <Card title="Test Options First" icon="vial">
+    Try different combinations on small batches before processing large collections.
+  </Card>
+</CardGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Workflow" href="/concepts/workflow" icon="diagram-project">
+    See how EditOptions fit into the complete workflow
+  </Card>
+  
+  <Card title="Profiles" href="/concepts/profiles" icon="user">
+    Learn about AI profiles and training
+  </Card>
+  
+  <Card title="Start Editing" href="/api/imagen-client#start_editing" icon="play">
+    View the start_editing API reference
+  </Card>
+  
+  <Card title="Quick Edit" href="/api/quick-edit" icon="bolt">
+    Use the quick_edit convenience function
+  </Card>
+</CardGroup>
