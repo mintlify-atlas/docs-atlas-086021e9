@@ -1,0 +1,118 @@
+{
+  "projectType": "sdk-library",
+  "projectName": "Imagen AI Python SDK",
+  "projectDescription": "Professional AI photo editing automation SDK for photographers to batch edit photos with trained AI profiles",
+  "theme": "palm",
+  "primaryColor": "#6366f1",
+  "lightColor": "#818cf8",
+  "darkColor": "#4f46e5",
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Getting Started",
+            "pages": [
+              "introduction",
+              "installation",
+              "quickstart"
+            ]
+          },
+          {
+            "group": "Core Concepts",
+            "pages": [
+              "concepts/workflow",
+              "concepts/profiles",
+              "concepts/file-formats",
+              "concepts/edit-options"
+            ]
+          },
+          {
+            "group": "Guides",
+            "pages": [
+              "guides/basic-editing",
+              "guides/advanced-workflow",
+              "guides/wedding-photography",
+              "guides/batch-processing",
+              "guides/error-handling"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "API Reference",
+        "groups": [
+          {
+            "group": "Client",
+            "pages": [
+              "api/imagen-client"
+            ]
+          },
+          {
+            "group": "Functions",
+            "pages": [
+              "api/quick-edit",
+              "api/get-profiles",
+              "api/get-profile",
+              "api/check-files"
+            ]
+          },
+          {
+            "group": "Models",
+            "pages": [
+              "api/models/edit-options",
+              "api/models/profile",
+              "api/models/upload-summary",
+              "api/models/quick-edit-result"
+            ]
+          },
+          {
+            "group": "Enums",
+            "pages": [
+              "api/enums/photography-type",
+              "api/enums/crop-aspect-ratio"
+            ]
+          },
+          {
+            "group": "Exceptions",
+            "pages": [
+              "api/exceptions"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "keyFeatures": [
+    "One-line photo editing workflow with quick_edit()",
+    "Async/await support with concurrent uploads and downloads",
+    "AI-powered batch editing using trained profiles",
+    "Support for RAW and JPEG formats",
+    "Progress tracking callbacks for long operations",
+    "XMP file generation compatible with Lightroom/Photoshop",
+    "Optional JPEG export for client delivery",
+    "MD5 hash verification for upload integrity"
+  ],
+  "publicApiSurface": [
+    "ImagenClient",
+    "quick_edit",
+    "get_profiles",
+    "get_profile",
+    "check_files_match_profile_type",
+    "EditOptions",
+    "Profile",
+    "UploadSummary",
+    "QuickEditResult",
+    "PhotographyType",
+    "CropAspectRatio",
+    "ImagenError",
+    "AuthenticationError",
+    "ProjectError",
+    "UploadError",
+    "DownloadError",
+    "RAW_EXTENSIONS",
+    "JPG_EXTENSIONS",
+    "SUPPORTED_FILE_FORMATS"
+  ]
+}
