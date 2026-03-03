@@ -14,7 +14,7 @@ Represents the upload result for a single file.
 ### Model Definition
 
 ```python
-from imagen_sdk.models import UploadResult
+from imagen_sdk import UploadResult
 ```
 
 ### Fields
@@ -42,7 +42,7 @@ from imagen_sdk.models import UploadResult
 #### Successful Upload
 
 ```python
-from imagen_sdk.models import UploadResult
+from imagen_sdk import UploadResult
 
 result = UploadResult(
     file="/path/to/image1.jpg",
@@ -75,7 +75,7 @@ Provides an aggregate summary of multiple file uploads.
 ### Model Definition
 
 ```python
-from imagen_sdk.models import UploadSummary
+from imagen_sdk import UploadSummary
 ```
 
 ### Fields
@@ -105,7 +105,7 @@ from imagen_sdk.models import UploadSummary
 #### Creating an Upload Summary
 
 ```python
-from imagen_sdk.models import UploadSummary, UploadResult
+from imagen_sdk import UploadSummary, UploadResult
 
 summary = UploadSummary(
     total=3,

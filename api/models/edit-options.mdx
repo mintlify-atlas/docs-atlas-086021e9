@@ -10,7 +10,7 @@ The `EditOptions` model defines which editing operations to apply to images. It 
 ## Model Definition
 
 ```python
-from imagen_sdk.models import EditOptions
+from imagen_sdk import EditOptions
 ```
 
 ## Fields
@@ -123,7 +123,7 @@ def to_api_dict(self) -> dict[str, Any]
 ### Basic Editing Options
 
 ```python
-from imagen_sdk.models import EditOptions
+from imagen_sdk import EditOptions
 
 # Simple cropping and straightening
 options = EditOptions(
